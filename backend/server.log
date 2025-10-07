@@ -1,0 +1,9 @@
+[dotenv@17.2.2] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[ENV CHECK] {
+  DB_HOST: '127.0.0.1',
+  DB_PORT: '3306',
+  DB_USER: 'root',
+  DB_NAME: 'hotel_booking'
+}
+[dotenv@17.2.2] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+API listening on port 4000
