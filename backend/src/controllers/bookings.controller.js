@@ -1,25 +1,28 @@
 import pool from "../config/db.js";
 import { hotelIdByBookingId, managerOwnsHotel } from "./_ownership.util.js";
 
+const ACTIVE_STATUSES = new Set(["pending", "confirmed", "completed"]);
 
-/** Kiểm tra phòng còn trống cho khoảng ngày */
 const isRoomAvailable = async (roomId, checkIn, checkOut) => {
   const [rows] = await pool.query(
-    `SELECT 1 FROM bookings b
-     WHERE b.room_id = ?
-       AND b.status IN ('pending','confirmed','completed')
-       AND (? < b.check_out AND ? > b.check_in)
-     LIMIT 1`,
-    [roomId, checkIn, checkOut]
+    `SELECT 1
+       FROM bookings b
+      WHERE b.room_id = ?
+        AND b.status IN ('pending','confirmed','completed')
+        AND (? < b.check_out AND ? > b.check_in)
+      LIMIT 1`,
+    [roomId, checkIn, checkOut],
   );
   return rows.length === 0;
 };
 
-/** Kiểm tra phòng có bị chồng lịch trong khoảng check_in..check_out với các booking đang active hay không */
 const hasOverlap = async (roomId, checkIn, checkOut, excludeBookingId = null) => {
   const params = [roomId, checkIn, checkOut];
   let excludeSql = "";
-  if (excludeBookingId) { excludeSql = "AND b.id <> ?"; params.push(excludeBookingId); }
+  if (excludeBookingId) {
+    excludeSql = "AND b.id <> ?";
+    params.push(excludeBookingId);
+  }
 
   const [rows] = await pool.query(
     `SELECT 1
@@ -29,47 +32,125 @@ const hasOverlap = async (roomId, checkIn, checkOut, excludeBookingId = null) =>
         AND (? < b.check_out AND ? > b.check_in)
         ${excludeSql}
       LIMIT 1`,
-    params
+    params,
   );
   return rows.length > 0;
+};
+
+export const listBookings = async (req, res, next) => {
+  try {
+    const role = req.user?.role ?? "customer";
+    const authUserId = req.user?.id;
+    const queryUserIdRaw = req.query.userId ?? req.query.user_id;
+    const queryUserId = Number(queryUserIdRaw);
+
+    let targetUserId = null;
+    if (role === "customer") {
+      targetUserId = authUserId;
+    } else if (Number.isInteger(queryUserId) && queryUserId > 0) {
+      targetUserId = queryUserId;
+    }
+
+    let sql =
+      `SELECT b.id,
+              b.user_id,
+              b.room_id,
+              b.check_in,
+              b.check_out,
+              b.total_price,
+              b.status,
+              b.created_at,
+              r.room_number,
+              r.type AS room_type,
+              r.price_per_night,
+              h.name AS hotel_name
+         FROM bookings b
+         LEFT JOIN rooms r ON r.id = b.room_id
+         LEFT JOIN hotels h ON h.id = r.hotel_id`;
+
+    const params = [];
+    if (targetUserId) {
+      sql += " WHERE b.user_id = ?";
+      params.push(targetUserId);
+    }
+
+    sql += " ORDER BY b.check_in DESC, b.created_at DESC, b.id DESC";
+
+    const [rows] = await pool.query(sql, params);
+    res.json({ data: rows });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const createBooking = async (req, res, next) => {
   const conn = await pool.getConnection();
   try {
-    const userId = req.user.id; // từ protect
+    const userId = req.user.id;
     const { room_id, check_in, check_out } = req.body;
-    if (!room_id || !check_in || !check_out)
+    if (!room_id || !check_in || !check_out) {
       return res.status(400).json({ message: "room_id, check_in, check_out required" });
+    }
 
-    // lấy giá phòng
     const [roomRows] = await conn.query(
-      "SELECT id, price_per_night FROM rooms WHERE id = ? LIMIT 1",
-      [room_id]
+      `SELECT r.id,
+              r.room_number,
+              r.type,
+              r.price_per_night,
+              r.hotel_id,
+              h.name AS hotel_name
+         FROM rooms r
+         JOIN hotels h ON h.id = r.hotel_id
+        WHERE r.id = ?
+        LIMIT 1`,
+      [room_id],
     );
-    if (!roomRows.length) return res.status(404).json({ message: "Room not found" });
+    if (!roomRows.length) {
+      return res.status(404).json({ message: "Room not found" });
+    }
 
-    // check phòng trống
     const available = await isRoomAvailable(room_id, check_in, check_out);
-    if (!available) return res.status(409).json({ message: "Room is not available in that range" });
+    if (!available) {
+      return res.status(409).json({ message: "Room is not available in that range" });
+    }
 
-    // tính tổng tiền = số đêm * price_per_night
-    const [nightsRes] = await conn.query("SELECT DATEDIFF(?, ?) AS nights", [check_out, check_in]);
-    const nights = Math.max(1, nightsRes[0].nights); // ít nhất 1 đêm
-    const total = (Number(roomRows[0].price_per_night) * nights).toFixed(2);
+    const [nightsRows] = await conn.query(
+      "SELECT DATEDIFF(?, ?) AS nights",
+      [check_out, check_in],
+    );
+    const rawNights = Number(nightsRows[0]?.nights ?? 0);
+    const nights = Math.max(1, rawNights);
+    const roomRow = roomRows[0];
+    const pricePerNight = Number(roomRow.price_per_night);
+    const total = pricePerNight * nights;
 
     await conn.beginTransaction();
     const [result] = await conn.query(
       `INSERT INTO bookings (user_id, room_id, check_in, check_out, total_price, status)
        VALUES (?, ?, ?, ?, ?, 'pending')`,
-      [userId, room_id, check_in, check_out, total]
+      [userId, room_id, check_in, check_out, total],
     );
-
     await conn.commit();
-    res.status(201).json({ id: result.insertId, total_price: total, status: "pending" });
-  } catch (e) {
-    await pool.query("ROLLBACK");
-    next(e);
+
+    res.status(201).json({
+      data: {
+        id: result.insertId,
+        user_id: userId,
+        room_id,
+        check_in,
+        check_out,
+        total_price: total,
+        nights,
+        status: "pending",
+        room_number: roomRow.room_number,
+        room_type: roomRow.type,
+        price_per_night: pricePerNight,
+        hotel_name: roomRow.hotel_name,
+      },
+    });
+  } catch (err) {
+    await conn.rollback();
+    next(err);
   } finally {
     conn.release();
   }
@@ -79,81 +160,90 @@ export const completeBooking = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
 
-    // ⬇️ ownership check for manager
     if (req.user?.role === "hotel_manager") {
       const hotelId = await hotelIdByBookingId(id);
-      if (!hotelId) return res.status(404).json({ message: "Booking not found" });
-      const ok = await managerOwnsHotel(req.user.id, hotelId);
-      if (!ok) return res.status(403).json({ message: "You are not allowed to manage this hotel" });
+      if (!hotelId) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      const ownsHotel = await managerOwnsHotel(req.user.id, hotelId);
+      if (!ownsHotel) {
+        return res.status(403).json({ message: "You are not allowed to manage this hotel" });
+      }
     }
 
-    const [r] = await pool.query(
-      "UPDATE bookings SET status='completed' WHERE id=? AND status IN ('pending','confirmed')",
-      [id]
+    const [result] = await pool.query(
+      "UPDATE bookings SET status = 'completed' WHERE id = ? AND status IN ('pending','confirmed')",
+      [id],
     );
-    if (r.affectedRows === 0) return res.status(404).json({ message: "Booking not updatable or not found" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Booking not updatable or not found" });
+    }
     res.json({ message: "Booking marked as completed" });
-  } catch (e) { next(e); }
+  } catch (err) {
+    next(err);
+  }
 };
 
-/** Admin/Manager: cập nhật trạng thái booking (pending|confirmed|cancelled) khi chưa completed */
 export const updateBookingStatus = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { status } = req.body;
 
-    const allowed = new Set(["pending", "confirmed", "cancelled"]);
     if (!Number.isInteger(id)) {
       return res.status(400).json({ message: "booking id must be an integer" });
     }
-    if (!allowed.has(status)) {
-      return res.status(400).json({ message: "status must be one of pending|confirmed|cancelled" });
+    if (!ACTIVE_STATUSES.has(status) && status !== "cancelled") {
+      return res.status(400).json({ message: "status must be pending, confirmed or cancelled" });
     }
 
     if (req.user?.role === "hotel_manager") {
       const hotelId = await hotelIdByBookingId(id);
-      if (!hotelId) return res.status(404).json({ message: "Booking not found" });
-      const ok = await managerOwnsHotel(req.user.id, hotelId);
-      if (!ok) return res.status(403).json({ message: "You are not allowed to manage this hotel" });
+      if (!hotelId) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      const ownsHotel = await managerOwnsHotel(req.user.id, hotelId);
+      if (!ownsHotel) {
+        return res.status(403).json({ message: "You are not allowed to manage this hotel" });
+      }
     }
 
-    // Lấy thông tin booking hiện tại
     const [rows] = await pool.query(
       `SELECT b.id, b.status, b.room_id, b.check_in, b.check_out
          FROM bookings b
-        WHERE b.id = ? 
+        WHERE b.id = ?
         LIMIT 1`,
-      [id]
+      [id],
     );
-    if (!rows.length) return res.status(404).json({ message: "Booking not found" });
+    if (!rows.length) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
 
-    const bk = rows[0];
+    const booking = rows[0];
 
-    // Không cho sửa nếu đã completed/cancelled (trừ khi muốn "cancelled" -> đã cancelled thì idempotent)
-    if (bk.status === "completed") {
+    if (booking.status === "completed") {
       return res.status(409).json({ message: "Completed booking cannot be changed" });
     }
-    if (bk.status === "cancelled" && status !== "cancelled") {
+    if (booking.status === "cancelled" && status !== "cancelled") {
       return res.status(409).json({ message: "Cancelled booking cannot be re-activated" });
     }
 
-    // Khi xác nhận (confirmed), phải chắc không chồng lịch
     if (status === "confirmed") {
-      const overlap = await hasOverlap(bk.room_id, bk.check_in, bk.check_out, bk.id);
+      const overlap = await hasOverlap(booking.room_id, booking.check_in, booking.check_out, booking.id);
       if (overlap) {
         return res.status(409).json({ message: "Cannot confirm: room is not available in that range" });
       }
     }
 
-    // Cập nhật trạng thái
-    const [r] = await pool.query(
+    const [updateResult] = await pool.query(
       "UPDATE bookings SET status = ? WHERE id = ?",
-      [status, id]
+      [status, id],
     );
-    if (r.affectedRows === 0) {
+    if (updateResult.affectedRows === 0) {
       return res.status(500).json({ message: "Update failed" });
     }
 
     res.json({ message: "Booking status updated", id, status });
-  } catch (e) { next(e); }
+  } catch (err) {
+    next(err);
+  }
 };
