@@ -4,6 +4,7 @@ import {
   listBookings,
   completeBooking,
   updateBookingStatus,
+  cancelBooking,
 } from "../controllers/bookings.controller.js";
 import { protect, authorize } from "../middleware/auth.js";
 
@@ -13,5 +14,6 @@ router.get("/", protect, authorize("customer", "admin", "hotel_manager"), listBo
 router.post("/", protect, authorize("customer", "admin", "hotel_manager"), createBooking);
 router.patch("/:id/status", protect, authorize("admin", "hotel_manager"), updateBookingStatus);
 router.patch("/:id/complete", protect, authorize("admin", "hotel_manager"), completeBooking);
+router.patch("/:id/cancel", protect, authorize("customer", "admin", "hotel_manager"), cancelBooking);
 
 export default router;

@@ -36,6 +36,27 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
     await _future;
   }
 
+  bool _canCancel(Booking booking) {
+    final status = booking.status.toLowerCase();
+    return status == 'pending' || status == 'confirmed';
+  }
+
+  Future<void> _cancelBooking(Booking booking) async {
+    try {
+      await _service.cancelBooking(booking.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã hủy đơn đặt phòng.')),
+      );
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể hủy đơn: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,10 +92,32 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
           }
           return RefreshIndicator(
             onRefresh: _refresh,
-            child: ListView.builder(
+            child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 8, bottom: 24),
               itemCount: bookings.length,
-              itemBuilder: (_, index) => BookingCard(booking: bookings[index]),
+              separatorBuilder: (_, __) => const SizedBox(height: 4),
+              itemBuilder: (_, index) {
+                final booking = bookings[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      BookingCard(booking: booking),
+                      if (_canCancel(booking))
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => _cancelBooking(booking),
+                            icon: const Icon(Icons.cancel_schedule_send),
+                            label: const Text('Hủy đơn này'),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           );
         },

@@ -42,19 +42,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _makePayment() async {
     setState(() => _processing = true);
     try {
-      await _paymentService.createPayment(
+      final payment = await _paymentService.createPayment(
         bookingId: _booking.id,
         amount: _booking.totalPrice,
         method: _method,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thanh toán thành công')),
+      final updatedBooking = _booking.copyWith(
+        status: payment.status,
+        totalAmount: payment.amount,
       );
-      Navigator.pushNamedAndRemoveUntil(
+      Navigator.pushReplacementNamed(
         context,
-        '/trips',
-        (route) => route.settings.name == '/home',
+        '/success',
+        arguments: {
+          'booking': updatedBooking,
+          'payAmount': payment.amount,
+          'payMethod': _method,
+          'voucher': null,
+        },
       );
     } catch (e) {
       if (!mounted) return;

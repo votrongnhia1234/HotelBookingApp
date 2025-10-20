@@ -19,9 +19,11 @@ class ApiConstants {
   // Bookings
   static const String bookings = '/bookings';
   static String bookingsByUser(int userId) => '/bookings?userId=$userId';
+  static String cancelBooking(int bookingId) => '/bookings/$bookingId/cancel';
 
   // Payments
   static const String payments = '/payments';
+  static const String vouchers = '/vouchers';
 
   // Reviews
   static String reviewsGetByHotel(int hotelId) => '/reviews/hotel/$hotelId';

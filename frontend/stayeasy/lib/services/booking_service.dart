@@ -32,4 +32,8 @@ class BookingService {
     final mapped = ApiDataParser.map(raw);
     return Booking.fromJson(Map<String, dynamic>.from(mapped['data'] ?? mapped));
   }
+
+  Future<void> cancelBooking(int bookingId) async {
+    await _api.patch(ApiConstants.cancelBooking(bookingId), {});
+  }
 }

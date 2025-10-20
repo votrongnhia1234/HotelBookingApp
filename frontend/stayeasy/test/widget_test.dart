@@ -11,20 +11,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stayeasy/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('StayEasyApp wires MaterialApp with splash route', (tester) async {
     await tester.pumpWidget(const StayEasyApp());
+    await tester.pump(); // allow first frame
+    await tester.pump(const Duration(seconds: 3)); // flush splash timer
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    final materialAppFinder = find.byType(MaterialApp);
+    expect(materialAppFinder, findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final materialApp = tester.widget<MaterialApp>(materialAppFinder);
+    expect(materialApp.initialRoute, '/splash');
   });
 }

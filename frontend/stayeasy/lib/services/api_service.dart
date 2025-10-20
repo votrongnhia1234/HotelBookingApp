@@ -51,4 +51,21 @@ class ApiService {
     }
     throw ApiException(resp.statusCode, resp.body);
   }
+
+  Future<dynamic> patch(String path, Map<String, dynamic> body,
+      {Map<String, String>? headers}) async {
+    final url = _build(path);
+    if (_log) print('[PATCH] $url\nBody: $body');
+    final resp = await http.patch(
+      url,
+      headers: _headers(headers),
+      body: jsonEncode(body),
+    );
+    if (_log) print('[PATCH] ${resp.statusCode} ${resp.body}');
+    if (resp.statusCode >= 200 && resp.statusCode < 300) {
+      if (resp.bodyBytes.isEmpty) return null;
+      return jsonDecode(utf8.decode(resp.bodyBytes));
+    }
+    throw ApiException(resp.statusCode, resp.body);
+  }
 }

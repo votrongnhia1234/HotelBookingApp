@@ -156,6 +156,51 @@ export const createBooking = async (req, res, next) => {
   }
 };
 
+export const cancelBooking = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const role = req.user?.role ?? "customer";
+    const userId = req.user?.id;
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ message: "booking id must be an integer" });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, user_id, status
+         FROM bookings
+        WHERE id = ?
+        LIMIT 1`,
+      [id],
+    );
+    if (!rows.length) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const booking = rows[0];
+
+    if (role === "customer" && booking.user_id !== userId) {
+      return res.status(403).json({ message: "You are not allowed to cancel this booking" });
+    }
+
+    if (!["pending", "confirmed"].includes(String(booking.status ?? "").toLowerCase())) {
+      return res.status(409).json({ message: "Booking cannot be cancelled at this stage" });
+    }
+
+    const [result] = await pool.query(
+      "UPDATE bookings SET status = 'cancelled' WHERE id = ?",
+      [id],
+    );
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ message: "Cancel booking failed" });
+    }
+
+    res.json({ message: "Booking cancelled", id });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const completeBooking = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
