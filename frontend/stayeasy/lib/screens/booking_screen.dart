@@ -31,7 +31,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
   int get _total => _nights * widget.room.pricePerNight;
 
-  String _formatForApi(DateTime value) => value.toIso8601String().substring(0, 10);
+  String _formatForApi(DateTime value) =>
+      value.toIso8601String().substring(0, 10);
 
   String _formatDisplay(DateTime value) => _displayDate.format(value);
 
@@ -63,7 +64,9 @@ class _BookingScreenState extends State<BookingScreen> {
       if (!mounted) return;
       if (!AuthState.I.isLoggedIn) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng đăng nhập để tiếp tục đặt phòng.')),
+          const SnackBar(
+            content: Text('Vui lòng đăng nhập để tiếp tục đặt phòng.'),
+          ),
         );
         return;
       }
@@ -80,12 +83,16 @@ class _BookingScreenState extends State<BookingScreen> {
           ? created.copyWith(totalAmount: _total.toDouble())
           : created;
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/payment', arguments: bookingForPayment);
+      Navigator.pushReplacementNamed(
+        context,
+        '/payment',
+        arguments: bookingForPayment,
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đặt phòng thất bại: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Đặt phòng thất bại: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -94,7 +101,9 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   Widget build(BuildContext context) {
     final room = widget.room;
-    final roomTitle = room.type.isNotEmpty ? room.type : 'Phòng ${room.roomNumber}';
+    final roomTitle = room.type.isNotEmpty
+        ? room.type
+        : 'Phòng ${room.roomNumber}';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Đặt phòng')),
@@ -182,7 +191,9 @@ class _BookingScreenState extends State<BookingScreen> {
           Text(label, style: const TextStyle(color: Colors.black54)),
           Text(
             value,
-            style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w600),
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+            ),
           ),
         ],
       ),

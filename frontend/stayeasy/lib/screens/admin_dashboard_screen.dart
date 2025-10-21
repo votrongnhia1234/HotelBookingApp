@@ -23,7 +23,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bảng điều khiển quản trị')),
@@ -34,14 +38,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Không thể tải dữ liệu: ${snapshot.error}'));
+            return Center(
+              child: Text('Không thể tải dữ liệu: ${snapshot.error}'),
+            );
           }
           final stats = snapshot.data!;
           final tiles = <_MetricTile>[
-            _MetricTile(label: 'Người dùng', value: stats.users.toString(), icon: Icons.people_alt),
-            _MetricTile(label: 'Khách sạn', value: stats.hotels.toString(), icon: Icons.apartment),
-            _MetricTile(label: 'Phòng', value: stats.rooms.toString(), icon: Icons.meeting_room_outlined),
-            _MetricTile(label: 'Đơn đặt', value: stats.bookings.toString(), icon: Icons.event_available),
+            _MetricTile(
+              label: 'Người dùng',
+              value: stats.users.toString(),
+              icon: Icons.people_alt,
+            ),
+            _MetricTile(
+              label: 'Khách sạn',
+              value: stats.hotels.toString(),
+              icon: Icons.apartment,
+            ),
+            _MetricTile(
+              label: 'Phòng',
+              value: stats.rooms.toString(),
+              icon: Icons.meeting_room_outlined,
+            ),
+            _MetricTile(
+              label: 'Đơn đặt',
+              value: stats.bookings.toString(),
+              icon: Icons.event_available,
+            ),
             _MetricTile(
               label: 'Doanh thu (tổng)',
               value: currency.format(stats.revenueAll),
@@ -63,12 +85,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text('Cập nhật đến ${stats.asOf}', style: const TextStyle(color: Colors.black54)),
+                Text(
+                  'Cập nhật đến ${stats.asOf}',
+                  style: const TextStyle(color: Colors.black54),
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
-                  children: tiles.map((tile) => tile.buildCard(context)).toList(),
+                  children: tiles
+                      .map((tile) => tile.buildCard(context))
+                      .toList(),
                 ),
               ],
             ),
@@ -80,7 +107,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 }
 
 class _MetricTile {
-  const _MetricTile({required this.label, required this.value, required this.icon});
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   final String label;
   final String value;
@@ -88,7 +119,9 @@ class _MetricTile {
 
   Widget buildCard(BuildContext context) {
     final theme = Theme.of(context);
-    final width = math.max(MediaQuery.of(context).size.width / 2 - 24, 160).toDouble();
+    final width = math
+        .max(MediaQuery.of(context).size.width / 2 - 24, 160)
+        .toDouble();
     return SizedBox(
       width: width,
       child: Card(
@@ -101,7 +134,9 @@ class _MetricTile {
               const SizedBox(height: 12),
               Text(
                 value,
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 4),
               Text(label, style: const TextStyle(color: Colors.black54)),

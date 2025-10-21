@@ -64,7 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1002821305533',
     projectId: 'stayeasy-a9904',
     storageBucket: 'stayeasy-a9904.firebasestorage.app',
-    iosClientId: '1002821305533-8ue7t0cpgd6a2d4g066uuk5t58l1o80o.apps.googleusercontent.com',
+    iosClientId:
+        '1002821305533-8ue7t0cpgd6a2d4g066uuk5t58l1o80o.apps.googleusercontent.com',
     iosBundleId: 'com.example.stayeasy',
   );
 
@@ -74,7 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1002821305533',
     projectId: 'stayeasy-a9904',
     storageBucket: 'stayeasy-a9904.firebasestorage.app',
-    iosClientId: '1002821305533-8ue7t0cpgd6a2d4g066uuk5t58l1o80o.apps.googleusercontent.com',
+    iosClientId:
+        '1002821305533-8ue7t0cpgd6a2d4g066uuk5t58l1o80o.apps.googleusercontent.com',
     iosBundleId: 'com.example.stayeasy',
   );
 

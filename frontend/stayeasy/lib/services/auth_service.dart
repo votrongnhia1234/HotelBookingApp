@@ -6,7 +6,8 @@ import '../state/auth_state.dart';
 import '../utils/api_data_parser.dart';
 import 'api_service.dart';
 
-typedef OtpSentCallback = void Function(String verificationId, int? resendToken);
+typedef OtpSentCallback =
+    void Function(String verificationId, int? resendToken);
 
 class AuthService {
   AuthService() : _firebase = fb.FirebaseAuth.instance;
@@ -33,12 +34,28 @@ class AuthService {
     }
   }
 
-  Future<User> loginPhone({required String phone, required String password}) async {
-    final attempts = <({String path, Map<String, dynamic> body, String tokenKey})>[
-      (path: '/auth/login-phone', body: {'phone': phone, 'password': password}, tokenKey: 'token'),
-      (path: '/auth/login', body: {'phone': phone, 'password': password}, tokenKey: 'token'),
-      (path: '/login', body: {'phone': phone, 'password': password}, tokenKey: 'token'),
-    ];
+  Future<User> loginPhone({
+    required String phone,
+    required String password,
+  }) async {
+    final attempts =
+        <({String path, Map<String, dynamic> body, String tokenKey})>[
+          (
+            path: '/auth/login-phone',
+            body: {'phone': phone, 'password': password},
+            tokenKey: 'token',
+          ),
+          (
+            path: '/auth/login',
+            body: {'phone': phone, 'password': password},
+            tokenKey: 'token',
+          ),
+          (
+            path: '/login',
+            body: {'phone': phone, 'password': password},
+            tokenKey: 'token',
+          ),
+        ];
 
     Object? lastErr;
     for (final attempt in attempts) {
@@ -47,8 +64,12 @@ class AuthService {
         final parsed = ApiDataParser.map(raw);
         final data = Map<String, dynamic>.from(parsed['data'] ?? parsed);
 
-        final token = (data[attempt.tokenKey] ?? data['accessToken'] ?? data['jwt'] ?? '').toString();
-        final userMap = Map<String, dynamic>.from(data['user'] ?? data['profile'] ?? data);
+        final token =
+            (data[attempt.tokenKey] ?? data['accessToken'] ?? data['jwt'] ?? '')
+                .toString();
+        final userMap = Map<String, dynamic>.from(
+          data['user'] ?? data['profile'] ?? data,
+        );
         final user = User.fromJson(userMap);
 
         await AuthState.I.setSession(user: user, jwt: token);
@@ -123,13 +144,22 @@ class AuthService {
     String findToken(dynamic node) {
       if (node is Map || node is Map<String, dynamic>) {
         final map = toMap(node);
-        for (final key in const ['token', 'jwt', 'accessToken', 'access_token']) {
+        for (final key in const [
+          'token',
+          'jwt',
+          'accessToken',
+          'access_token',
+        ]) {
           final value = map[key];
-          if (value != null && value.toString().isNotEmpty) return value.toString();
+          if (value != null && value.toString().isNotEmpty) {
+            return value.toString();
+          }
         }
         for (final value in map.values) {
           final candidate = findToken(value);
-          if (candidate.isNotEmpty) return candidate;
+          if (candidate.isNotEmpty) {
+            return candidate;
+          }
         }
       } else if (node is List) {
         for (final value in node) {
@@ -145,8 +175,12 @@ class AuthService {
         final map = toMap(node);
         final loweredKeys = map.keys.map((e) => e.toLowerCase()).toSet();
         if (loweredKeys.contains('id') &&
-            (loweredKeys.contains('name') || loweredKeys.contains('fullname') || loweredKeys.contains('username')) &&
-            (loweredKeys.contains('phone') || loweredKeys.contains('phonenumber') || loweredKeys.contains('email'))) {
+            (loweredKeys.contains('name') ||
+                loweredKeys.contains('fullname') ||
+                loweredKeys.contains('username')) &&
+            (loweredKeys.contains('phone') ||
+                loweredKeys.contains('phonenumber') ||
+                loweredKeys.contains('email'))) {
           return map;
         }
         for (final key in const ['user', 'profile', 'customer', 'account']) {

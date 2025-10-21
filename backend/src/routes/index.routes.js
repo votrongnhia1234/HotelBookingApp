@@ -21,5 +21,6 @@ router.use("/reviews", reviews);
 router.use("/payments", payments);
 router.use("/vouchers", vouchers);
 router.use("/admin", admin);
+router.use("/cities", citiesRouter);
 
 export default router;

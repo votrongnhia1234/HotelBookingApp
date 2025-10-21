@@ -23,3 +23,4 @@ void main() {
     expect(materialApp.initialRoute, '/splash');
   });
 }
+

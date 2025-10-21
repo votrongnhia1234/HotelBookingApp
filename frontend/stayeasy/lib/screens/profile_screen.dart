@@ -231,6 +231,11 @@ class _MemberSections extends StatelessWidget {
                     label: 'Số liệu đối tác',
                     onTap: () => Navigator.pushNamed(context, '/partner-dashboard'),
                   ),
+                _SettingsItem(
+                  icon: Icons.meeting_room_outlined,
+                  label: 'Quan ly phong',
+                  onTap: () => Navigator.pushNamed(context, '/manage-rooms'),
+                ),
               ],
             ),
           ],

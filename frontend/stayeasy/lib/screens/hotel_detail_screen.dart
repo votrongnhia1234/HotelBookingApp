@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
+import '../models/attraction_photo.dart';
 import '../models/hotel.dart';
 import '../models/room.dart';
 import '../services/hotel_service.dart';
@@ -15,13 +16,16 @@ class HotelDetailScreen extends StatefulWidget {
 }
 
 class _HotelDetailScreenState extends State<HotelDetailScreen> {
-  final _service = HotelService();
+  final HotelService _service = HotelService();
+
   late Future<List<Room>> _roomsFuture;
+  late Future<List<AttractionPhoto>> _attractionsFuture;
 
   @override
   void initState() {
     super.initState();
     _roomsFuture = _service.fetchRoomsByHotel(widget.hotel.id);
+    _attractionsFuture = _service.fetchCityAttractions(widget.hotel.city);
   }
 
   @override
@@ -30,7 +34,8 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(hotel.name)),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.pushNamed(context, '/review', arguments: hotel),
+        onPressed: () =>
+            Navigator.pushNamed(context, '/review', arguments: hotel),
         icon: const Icon(Icons.rate_review),
         label: const Text('Đánh giá'),
       ),
@@ -62,6 +67,97 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
               ],
             ),
           ),
+          FutureBuilder<List<AttractionPhoto>>(
+            future: _attractionsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const SizedBox.shrink();
+              }
+              final photos = snapshot.data ?? [];
+              if (photos.isEmpty || snapshot.hasError) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    Text(
+                      '�i?m d?n n?i b?t g?n ',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 140,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemBuilder: (context, index) {
+                          final photo = photos[index];
+                          return SizedBox(
+                            width: 200,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    photo.imageUrl,
+                                    fit: BoxFit.cover,
+                                  ),
+                                  Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: [
+                                          Colors.black87,
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          photo.title,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        Text(
+                                          photo.source,
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemCount: photos.length,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           FutureBuilder<List<Room>>(
             future: _roomsFuture,
             builder: (context, snapshot) {
@@ -83,17 +179,13 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
                         'Không thể tải danh sách phòng cho khách sạn (ID = ).',
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                      ),
                       const SizedBox(height: 12),
                       OutlinedButton(
-                        onPressed: () => setState(
-                          () => _roomsFuture = _service.fetchRoomsByHotel(hotel.id),
-                        ),
+                        onPressed: () {
+                          setState(() {
+                            _roomsFuture = _service.fetchRoomsByHotel(hotel.id);
+                          });
+                        },
                         child: const Text('Thử lại'),
                       ),
                     ],
@@ -107,12 +199,16 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      const Text('Hiện chưa có phòng khả dụng cho khách sạn này.'),
+                      const Text(
+                        'Hiện chưa có phòng khả dụng cho khách sạn này.',
+                      ),
                       const SizedBox(height: 8),
                       OutlinedButton(
-                        onPressed: () => setState(
-                          () => _roomsFuture = _service.fetchRoomsByHotel(hotel.id),
-                        ),
+                        onPressed: () {
+                          setState(() {
+                            _roomsFuture = _service.fetchRoomsByHotel(hotel.id);
+                          });
+                        },
                         child: const Text('Tải lại'),
                       ),
                     ],
@@ -125,7 +221,11 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
                     .map(
                       (room) => RoomCard(
                         room: room,
-                        onBook: () => Navigator.pushNamed(context, '/booking', arguments: room),
+                        onBook: () => Navigator.pushNamed(
+                          context,
+                          '/booking',
+                          arguments: room,
+                        ),
                       ),
                     )
                     .toList(),

@@ -2,6 +2,7 @@ class Hotel {
   final int id;
   final String name;
   final String address;
+  final String city;
   final double rating;
   final String description;
   final String imageUrl;
@@ -12,6 +13,7 @@ class Hotel {
     required this.id,
     required this.name,
     required this.address,
+    required this.city,
     required this.rating,
     required this.description,
     required this.imageUrl,
@@ -50,6 +52,7 @@ class Hotel {
         id: _toInt(j['id'] ?? j['hotel_id']),
         name: _toStr(j['name'] ?? j['hotel_name']),
         address: _toStr(j['address'] ?? j['location']),
+        city: _toStr(j['city'] ?? j['province'] ?? ''),
         rating: _toDouble(j['rating'] ?? j['avg_rating']),
         description: _toStr(j['description'] ?? j['desc']),
         imageUrl: _toStr(j['imageUrl'] ?? j['image_url'] ?? j['thumbnail']),

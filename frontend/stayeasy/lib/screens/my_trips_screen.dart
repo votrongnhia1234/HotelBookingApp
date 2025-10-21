@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:stayeasy/models/booking.dart';
 import 'package:stayeasy/services/booking_service.dart';
 import 'package:stayeasy/state/auth_state.dart';
-import 'package:stayeasy/widgets/booking_card.dart';
+import '../widgets/booking_card.dart';
 
 class MyTripsScreen extends StatefulWidget {
   const MyTripsScreen({super.key});

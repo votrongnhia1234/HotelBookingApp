@@ -2,11 +2,20 @@ import pool from "../config/db.js";
 
 /** manager có sở hữu hotel_id này không? */
 export const managerOwnsHotel = async (managerUserId, hotelId) => {
-  const [rows] = await pool.query(
-    "SELECT 1 FROM hotel_managers WHERE user_id=? AND hotel_id=? LIMIT 1",
-    [managerUserId, hotelId]
-  );
-  return rows.length > 0;
+  try {
+    const [rows] = await pool.query(
+      "SELECT 1 FROM hotel_managers WHERE user_id=? AND hotel_id=? LIMIT 1",
+      [managerUserId, hotelId]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    const msg = String(err?.message ?? err);
+    // If table missing in dev DB, consider manager doesn't own any hotel
+    if (msg.includes("doesn't exist") || msg.includes('ER_NO_SUCH_TABLE')) {
+      return false;
+    }
+    throw err;
+  }
 };
 
 /** lấy hotel_id từ room_id */

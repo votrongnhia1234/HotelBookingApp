@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:intl/intl.dart';
 import 'package:stayeasy/models/booking.dart';
+import 'package:stayeasy/models/voucher.dart';
 import 'package:stayeasy/services/api_service.dart';
 import 'package:stayeasy/services/payment_service.dart';
+import 'package:stayeasy/services/voucher_service.dart';
 import 'package:stayeasy/state/auth_state.dart';
 import 'package:stayeasy/widgets/custom_button.dart';
 
@@ -18,6 +20,7 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   final PaymentService _paymentService = PaymentService(ApiService());
+  final VoucherService _voucherService = VoucherService();
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'vi_VN',
     symbol: '₫',
@@ -26,24 +29,57 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   String _method = 'online';
   bool _processing = false;
+  bool _loadingVouchers = false;
+  List<Voucher> _vouchers = [];
+  Voucher? _selectedVoucher;
+  double _discount = 0;
 
   Booking get _booking => widget.booking;
+  double get _grossAmount => _booking.totalPrice;
+  double get _netAmount => (_grossAmount - _discount).clamp(0, double.infinity);
 
-  String _formatDate(String raw) {
-    final parsed = DateTime.tryParse(raw);
-    if (parsed != null) {
-      return DateFormat('dd/MM/yyyy').format(parsed);
-    }
-    final parts = raw.split(' ');
-    return parts.first;
+  @override
+  void initState() {
+    super.initState();
+    _initVouchers();
   }
+
+  Future<void> _initVouchers() async {
+    if (!AuthState.I.isLoggedIn) return;
+    setState(() => _loadingVouchers = true);
+    try {
+      final vouchers = await _voucherService.listForCurrentUser();
+      Voucher? initial;
+      if (vouchers.isNotEmpty) {
+        initial = vouchers.firstWhere(
+          (v) => v.recommended,
+          orElse: () => vouchers.first,
+        );
+      }
+      setState(() {
+        _vouchers = vouchers;
+        _selectedVoucher = initial;
+      });
+      _recalculateDiscount();
+    } catch (_) {
+      setState(() {
+        _vouchers = [];
+        _selectedVoucher = null;
+        _discount = 0;
+      });
+    } finally {
+      if (mounted) setState(() => _loadingVouchers = false);
+    }
+  }
+
+
 
   String _formatCurrency(num value) => _currencyFormat.format(value);
 
   Future<void> _handleOfflinePayment() async {
     final result = await _paymentService.createPayment(
       bookingId: _booking.id,
-      amount: _booking.totalPrice,
+      amount: _netAmount,
       method: 'cod',
       currency: 'vnd',
     );
@@ -51,16 +87,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (!mounted) return;
     final updatedBooking = _booking.copyWith(
       status: result.status ?? 'confirmed',
-      totalAmount: result.amount ?? _booking.totalAmount,
+      totalAmount: result.amount ?? _netAmount,
     );
     Navigator.pushReplacementNamed(
       context,
       '/success',
       arguments: {
         'booking': updatedBooking,
-        'payAmount': updatedBooking.totalPrice,
+        'payAmount': _netAmount,
         'payMethod': 'cod',
-        'voucher': null,
+        'voucher': _selectedVoucher?.code,
       },
     );
   }
@@ -68,7 +104,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _handleStripePayment() async {
     final result = await _paymentService.createPayment(
       bookingId: _booking.id,
-      amount: _booking.totalPrice,
+      amount: _netAmount,
       method: 'online',
       currency: 'vnd',
     );
@@ -88,7 +124,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
           currencyCode: 'VND',
           testEnv: true,
         ),
-        // Apple Pay yêu cầu merchant identifier, tạm thời tắt để tránh crash khi chưa cấu hình.
         applePay: null,
       ),
     );
@@ -96,15 +131,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
     await stripe.Stripe.instance.presentPaymentSheet();
 
     if (!mounted) return;
-    final updatedBooking = _booking.copyWith(status: 'completed');
+    final updatedBooking = _booking.copyWith(
+      status: 'completed',
+      totalAmount: _netAmount,
+    );
     Navigator.pushReplacementNamed(
       context,
       '/success',
       arguments: {
         'booking': updatedBooking,
-        'payAmount': _booking.totalPrice,
+        'payAmount': _netAmount,
         'payMethod': 'stripe',
-        'voucher': null,
+        'voucher': _selectedVoucher?.code,
       },
     );
   }
@@ -120,12 +158,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     } on stripe.StripeException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.error.localizedMessage ?? 'Thanh toán bị hủy.')),
+        SnackBar(
+          content: Text(e.error.localizedMessage ?? 'Thanh toán bị hủy.'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Thanh toán thất bại: $e')),
+        SnackBar(content: Text('Thanh toán thất bại: ${e.toString()}')),
       );
     } finally {
       if (mounted) setState(() => _processing = false);
@@ -139,7 +179,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final customerPhone = (user?.phone ?? '').trim();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Thanh toán')),
+      appBar: AppBar(title: const Text('Thanh to�n')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -148,7 +188,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               leading: const Icon(Icons.meeting_room),
               title: Text('Đơn đặt phòng #${_booking.id}'),
               subtitle: Text(
-                '${_formatDate(_booking.checkIn)} → ${_formatDate(_booking.checkOut)}',
+                '${_booking.hotelName} • Phòng ${_booking.roomNumber}',
               ),
             ),
           ),
@@ -156,9 +196,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.person),
-              title: Text('Khách: ${customerName.isEmpty ? 'Chưa cập nhật' : customerName}'),
+              title: Text(
+                'Khách: ${customerName.isNotEmpty ? customerName : 'Khách vãng lai'}',
+              ),
               subtitle: Text(
-                'Số điện thoại: ${customerPhone.isEmpty ? 'Chưa cập nhật' : customerPhone}',
+                'Sđt: ${customerPhone.isNotEmpty ? customerPhone : '-'}',
               ),
             ),
           ),
@@ -169,31 +211,104 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 _optionTile(
                   value: 'online',
                   title: 'Thanh toán trực tuyến',
-                  subtitle: 'Thẻ Visa/Master, Apple Pay, Google Pay…',
+                  subtitle: 'Thẻ Visa/Master, Google Pay.',
                 ),
                 const Divider(height: 0),
                 _optionTile(
                   value: 'cod',
                   title: 'Thanh toán tại khách sạn',
-                  subtitle: 'Trả tiền khi nhận phòng',
+                  subtitle: 'Trả tiền khi nhận phòng.',
                 ),
               ],
             ),
           ),
           const SizedBox(height: 8),
+          if (_loadingVouchers)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(child: Text('Đang tải ưu đãi cho bạn...')),
+                  ],
+                ),
+              ),
+            )
+          else if (_vouchers.isNotEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Chọn voucher',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<Voucher?>(
+                      initialValue: _selectedVoucher,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        labelText: 'Voucher khả dụng',
+                      ),
+                      items: [
+                        const DropdownMenuItem<Voucher?>(
+                          value: null,
+                          child: Text('Không sử dụng voucher'),
+                        ),
+                        ..._vouchers.map(
+                          (voucher) => DropdownMenuItem<Voucher?>(
+                            value: voucher,
+                            child: Text(
+                              voucher.code,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _selectedVoucher = value);
+                        _recalculateDiscount();
+                      },
+                    ),
+                    if (_selectedVoucher != null && _discount <= 0)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Voucher không đáp ứng điều kiện cho phương thức thực hiện hiện tại.',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  const Text(
-                    'Tổng tiền',
-                    style: TextStyle(color: Colors.black54, fontSize: 16),
+                  _amountRow('Tổng tiền', _formatCurrency(_grossAmount)),
+                  _amountRow(
+                    'Giảm giá',
+                    _discount > 0
+                        ? '- ${_formatCurrency(_discount)}'
+                        : _formatCurrency(0),
+                    highlight: _discount > 0,
                   ),
-                  Text(
-                    _formatCurrency(_booking.totalPrice),
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  const Divider(),
+                  _amountRow(
+                    'Thanh to�n',
+                    _formatCurrency(_netAmount),
+                    bold: true,
                   ),
                 ],
               ),
@@ -206,11 +321,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
             CustomButton(
               label: _method == 'online' ? 'Thanh toán' : 'Hoàn tất',
               onPressed: _makePayment,
-              icon: _method == 'online' ? Icons.lock : Icons.check_circle_outline,
+              icon: _method == 'online'
+                  ? Icons.lock
+                  : Icons.check_circle_outline,
             ),
         ],
       ),
     );
+  }
+
+  void _recalculateDiscount() {
+    final voucher = _selectedVoucher;
+    if (voucher == null) {
+      setState(() => _discount = 0);
+      return;
+    }
+    final raw = voucher.discountFor(
+      total: _grossAmount.toInt(),
+      payMethod: _method,
+    );
+    setState(() {
+      _discount = raw.toDouble().clamp(0, _grossAmount);
+    });
   }
 
   Widget _optionTile({
@@ -219,9 +351,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     required String subtitle,
   }) {
     final selected = _method == value;
-    final color = selected ? Theme.of(context).colorScheme.primary : Colors.grey;
+    final color = selected
+        ? Theme.of(context).colorScheme.primary
+        : Colors.grey;
     return InkWell(
-      onTap: () => setState(() => _method = value),
+      onTap: () {
+        setState(() => _method = value);
+        _recalculateDiscount();
+      },
       child: ListTile(
         leading: Icon(
           selected ? Icons.radio_button_checked : Icons.radio_button_off,
@@ -229,6 +366,30 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
         title: Text(title),
         subtitle: Text(subtitle),
+      ),
+    );
+  }
+
+  Widget _amountRow(
+    String label,
+    String value, {
+    bool bold = false,
+    bool highlight = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.black54)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+              color: highlight ? Colors.green : Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }

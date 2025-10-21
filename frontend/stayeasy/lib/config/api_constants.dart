@@ -13,8 +13,11 @@ class ApiConstants {
   // Hotels
   static const String hotels = '/hotels';
 
-  // ✅ ĐÚNG backend của bạn: /api/rooms/hotel/:id
+  // Rooms
   static String roomsByHotel(int hotelId) => '/rooms/hotel/$hotelId';
+  static const String rooms = '/rooms';
+  static String roomStatus(int roomId) => '/rooms/$roomId/status';
+  static const String roomImages = '/rooms/images';
 
   // Bookings
   static const String bookings = '/bookings';
@@ -27,6 +30,10 @@ class ApiConstants {
 
   // Admin
   static const String adminDashboard = '/admin/stats/dashboard';
+
+  // Cities & attractions
+  static String cityAttractions(String city) =>
+      '/cities/${Uri.encodeComponent(city)}/attractions/photos';
 
   // Reviews
   static String reviewsGetByHotel(int hotelId) => '/reviews/hotel/$hotelId';

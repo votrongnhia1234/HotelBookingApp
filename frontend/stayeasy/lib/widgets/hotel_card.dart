@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/hotel.dart';
 
 class HotelCard extends StatelessWidget {
-  final Hotel hotel;
-  final VoidCallback? onTap;
-  final String? heroTag;
-  final double? distanceKm;
-
   const HotelCard({
     super.key,
     required this.hotel,
@@ -16,6 +12,13 @@ class HotelCard extends StatelessWidget {
     this.distanceKm,
   });
 
+  final Hotel hotel;
+  final VoidCallback? onTap;
+  final String? heroTag;
+  final double? distanceKm;
+
+  bool get _hasLocation => hotel.latitude != null && hotel.longitude != null;
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(16);
@@ -23,6 +26,7 @@ class HotelCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: radius,
       child: Container(
+        width: double.infinity,
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(borderRadius: radius, color: Colors.white),
         clipBehavior: Clip.antiAlias,
@@ -34,7 +38,7 @@ class HotelCard extends StatelessWidget {
                   height: 160,
                   width: double.infinity,
                   child: Hero(
-                    tag: heroTag ?? 'hotel-image-${hotel.id}',
+                    tag: heroTag ?? 'hotel-image-',
                     child: hotel.imageUrl.isEmpty
                         ? Container(color: Colors.grey.shade200)
                         : Image.network(hotel.imageUrl, fit: BoxFit.cover),
@@ -46,7 +50,10 @@ class HotelCard extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
-                        colors: [Colors.black.withAlpha((0.35 * 255).round()), Colors.transparent],
+                        colors: [
+                          Color.fromRGBO(0, 0, 0, 0.35),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
                   ),
@@ -62,7 +69,11 @@ class HotelCard extends StatelessWidget {
                           hotel.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -89,16 +100,34 @@ class HotelCard extends StatelessWidget {
                           style: const TextStyle(color: Colors.black54),
                         ),
                       ),
+                      if (_hasLocation)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.map_outlined,
+                            color: Color(0xFF1E88E5),
+                          ),
+                          tooltip: 'Xem trên bản đồ',
+                          onPressed: () => _openMap(context),
+                        ),
                     ],
                   ),
                   if (distanceKm != null) ...[
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.near_me, size: 16, color: Color(0xFF1E88E5)),
+                        const Icon(
+                          Icons.near_me,
+                          size: 16,
+                          color: Color(0xFF1E88E5),
+                        ),
                         const SizedBox(width: 4),
-                        Text('${distanceKm!.toStringAsFixed(1)} km',
-                            style: const TextStyle(color: Color(0xFF1E88E5), fontWeight: FontWeight.w600)),
+                        Text(
+                          '${distanceKm!.toStringAsFixed(1)} km',
+                          style: const TextStyle(
+                            color: Color(0xFF1E88E5),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -110,25 +139,47 @@ class HotelCard extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _openMap(BuildContext context) async {
+    if (!_hasLocation) return;
+    final lat = hotel.latitude!.toStringAsFixed(6);
+    final lng = hotel.longitude!.toStringAsFixed(6);
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Không mở được bản đồ.')));
+      }
+    }
+  }
 }
 
 class _RatingPill extends StatelessWidget {
-  final double rating;
   const _RatingPill({required this.rating});
+
+  final double rating;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha((0.95 * 255).round()),
+        color: Color.fromRGBO(255, 255, 255, 0.95),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         children: [
           const Icon(Icons.star, color: Colors.amber, size: 16),
           const SizedBox(width: 4),
-          Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(
+            rating.toStringAsFixed(1),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );

@@ -56,20 +56,40 @@ export const getBookingSummary = async (req, res, next) => {
       params.push(req.user.id);
     }
 
-    const [[row]] = await pool.query(
-      `SELECT
-          COUNT(*) AS total,
-          SUM(b.status = 'pending') AS pending,
-          SUM(b.status = 'confirmed') AS confirmed,
-          SUM(b.status = 'completed') AS completed,
-          SUM(b.status = 'cancelled') AS cancelled,
-          COALESCE(SUM(CASE WHEN b.status IN ('pending','confirmed','completed') THEN b.total_price END), 0) AS valuePipeline,
-          COALESCE(SUM(CASE WHEN b.status = 'completed' THEN b.total_price END), 0) AS valueCompleted
-        FROM bookings b
-        ${join}
-        WHERE ${where}`,
-      params,
-    );
+    let row = {};
+    try {
+      const [[qrow]] = await pool.query(
+        `SELECT
+            COUNT(*) AS total,
+            SUM(b.status = 'pending') AS pending,
+            SUM(b.status = 'confirmed') AS confirmed,
+            SUM(b.status = 'completed') AS completed,
+            SUM(b.status = 'cancelled') AS cancelled,
+            COALESCE(SUM(CASE WHEN b.status IN ('pending','confirmed','completed') THEN b.total_price END), 0) AS valuePipeline,
+            COALESCE(SUM(CASE WHEN b.status = 'completed' THEN b.total_price END), 0) AS valueCompleted
+          FROM bookings b
+          ${join}
+          WHERE ${where}`,
+        params,
+      );
+      row = qrow ?? {};
+    } catch (sqlErr) {
+      // If the hotel_managers table doesn't exist (dev / incomplete DB), return default zeros
+      const msg = String(sqlErr?.message ?? sqlErr);
+      if (msg.includes("doesn't exist") || msg.includes('ER_NO_SUCH_TABLE')) {
+        row = {
+          total: 0,
+          pending: 0,
+          confirmed: 0,
+          completed: 0,
+          cancelled: 0,
+          valuePipeline: 0,
+          valueCompleted: 0,
+        };
+      } else {
+        throw sqlErr; // rethrow other SQL errors
+      }
+    }
 
     res.json({
       role,

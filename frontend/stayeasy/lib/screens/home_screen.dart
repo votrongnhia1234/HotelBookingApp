@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../models/hotel.dart';
@@ -24,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Position? _currentPosition;
   String? _locationError;
   bool _requestingLocation = false;
+  double _minRating = 0;
+  double? _maxDistanceKm;
 
   @override
   void initState() {
@@ -70,6 +72,133 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _openFilters() async {
+    double tempRating = _minRating;
+    double? tempDistance = _maxDistanceKm;
+    final hasLocation = _currentPosition != null;
+
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Bộ lọc',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            tempRating = 0;
+                            tempDistance = null;
+                          });
+                        },
+                        child: const Text('Xóa lọc'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Đánh giá tối thiểu'),
+                  Slider(
+                    value: tempRating,
+                    min: 0,
+                    max: 5,
+                    divisions: 10,
+                    label: tempRating.toStringAsFixed(1),
+                    onChanged: (value) =>
+                        setModalState(() => tempRating = value),
+                  ),
+                  if (hasLocation) ...[
+                    const SizedBox(height: 12),
+                    const Text('Khoảng cách tối đa (km)'),
+                    Slider(
+                      value: (tempDistance ?? 50).clamp(0, 50),
+                      min: 1,
+                      max: 50,
+                      divisions: 49,
+                      label: tempDistance == null
+                          ? 'Không giới hạn'
+                          : tempDistance!.toStringAsFixed(0),
+                      onChanged: (value) =>
+                          setModalState(() => tempDistance = value),
+                      onChangeEnd: (value) =>
+                          setModalState(() => tempDistance = value),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () =>
+                              setModalState(() => tempDistance = null),
+                          child: const Text('Bỏ giới hạn'),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          Navigator.pop<Map<String, dynamic>>(context, {
+                            'rating': tempRating,
+                            'distance': hasLocation ? tempDistance : null,
+                          }),
+                      child: const Text('Áp dụng'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null) return;
+    setState(() {
+      _minRating = result['rating'] as double? ?? 0;
+      _maxDistanceKm = result['distance'] as double?;
+    });
+  }
+
+  double? _distanceOf(Hotel hotel) {
+    return _locationService.distanceKm(
+      latitude: hotel.latitude,
+      longitude: hotel.longitude,
+      from: _currentPosition,
+    );
+  }
+
+  List<Hotel> _filterHotels(List<Hotel> hotels) {
+    return hotels.where((hotel) {
+      if (_query.isNotEmpty) {
+        final q = _query.toLowerCase();
+        final target = '${hotel.name} ${hotel.address} ${hotel.city}'
+            .toLowerCase();
+        if (!target.contains(q)) return false;
+      }
+      if (_minRating > 0 && hotel.rating < _minRating) return false;
+      if (_maxDistanceKm != null) {
+        final distance = _distanceOf(hotel);
+        if (distance == null || distance > _maxDistanceKm!) return false;
+      }
+      return true;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = [
@@ -82,8 +211,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('StayEasy', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'StayEasy',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Bộ lọc',
+            onPressed: _openFilters,
+          ),
           AnimatedBuilder(
             animation: AuthState.I,
             builder: (_, __) {
@@ -93,7 +230,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () => Navigator.pushNamed(context, '/login'),
                   child: const Text(
                     'Đăng nhập',
-                    style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 );
               }
@@ -101,9 +241,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.only(right: 8),
                 child: Row(
                   children: [
-                    const CircleAvatar(radius: 14, child: Icon(Icons.person, size: 16)),
+                    const CircleAvatar(
+                      radius: 14,
+                      child: Icon(Icons.person, size: 16),
+                    ),
                     const SizedBox(width: 6),
-                    Text(user.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text(
+                      user.name,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(width: 8),
                   ],
                 ),
@@ -117,11 +263,31 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _index,
         onTap: _onNavTap,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home_rounded), label: 'Trang chủ'),
-          BottomNavigationBarItem(icon: Icon(Icons.star_border_rounded), activeIcon: Icon(Icons.star_rounded), label: 'Đề xuất'),
-          BottomNavigationBarItem(icon: Icon(Icons.event_available_outlined), activeIcon: Icon(Icons.event_available), label: 'Phòng đã đặt'),
-          BottomNavigationBarItem(icon: Icon(Icons.card_giftcard_outlined), activeIcon: Icon(Icons.card_giftcard), label: 'Ưu đãi'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Tài khoản'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home_rounded),
+            label: 'Trang chủ',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.star_border_rounded),
+            activeIcon: Icon(Icons.star_rounded),
+            label: 'Đề xuất',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_available_outlined),
+            activeIcon: Icon(Icons.event_available),
+            label: 'Đã đặt',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.card_giftcard_outlined),
+            activeIcon: Icon(Icons.card_giftcard),
+            label: 'Ưu đãi',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Tài khoản',
+          ),
         ],
       ),
     );
@@ -134,9 +300,13 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           child: TextField(
             onChanged: (value) => setState(() => _query = value),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Tìm khách sạn, địa điểm...',
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                onPressed: _openFilters,
+                icon: const Icon(Icons.tune),
+              ),
             ),
           ),
         ),
@@ -154,7 +324,6 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: _LocationInfoBanner(
               message: 'Đang hiển thị theo vị trí hiện tại của bạn.',
-              isError: false,
               onRetry: _loadLocation,
               loading: _requestingLocation,
             ),
@@ -164,8 +333,26 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: _LocationInfoBanner(
               message: 'Đang xác định vị trí...',
-              isError: false,
               loading: true,
+            ),
+          ),
+        if (_minRating > 0 || _maxDistanceKm != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Wrap(
+              spacing: 8,
+              children: [
+                if (_minRating > 0)
+                  Chip(
+                    label: Text('Đánh giá từ ${_minRating.toStringAsFixed(1)}'),
+                    onDeleted: () => setState(() => _minRating = 0),
+                  ),
+                if (_maxDistanceKm != null)
+                  Chip(
+                    label: Text('≤ ${_maxDistanceKm!.toStringAsFixed(0)} km'),
+                    onDeleted: () => setState(() => _maxDistanceKm = null),
+                  ),
+              ],
             ),
           ),
         Expanded(
@@ -175,31 +362,52 @@ class _HomeScreenState extends State<HomeScreen> {
               if (snapshot.connectionState != ConnectionState.done) {
                 return const Center(child: CircularProgressIndicator());
               }
-              var hotels = snapshot.data ?? [];
-              if (_query.isNotEmpty) {
-                final q = _query.toLowerCase();
-                hotels = hotels
-                    .where((hotel) =>
-                        hotel.name.toLowerCase().contains(q) ||
-                        hotel.address.toLowerCase().contains(q))
-                    .toList();
-              }
-              if (hotels.isEmpty) {
-                return const Center(child: Text('Không tìm thấy khách sạn phù hợp'));
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.only(bottom: 12),
-                itemCount: hotels.length,
-                itemBuilder: (_, index) => HotelCard(
-                  hotel: hotels[index],
-                  distanceKm: _locationService.distanceKm(
-                    latitude: hotels[index].latitude,
-                    longitude: hotels[index].longitude,
-                    from: _currentPosition,
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Không th? t?i danh sách khách s?n.'),
+                      const SizedBox(height: 8),
+                      Text(
+                        snapshot.error.toString(),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () => setState(
+                          () => _hotelsFuture = _hotelService.fetchHotels(),
+                        ),
+                        child: const Text('Thử lại'),
+                      ),
+                    ],
                   ),
-                  heroTag: 'home-',
-                  onTap: () => Navigator.pushNamed(context, '/hotel', arguments: hotels[index]),
-                ),
+                );
+              }
+
+              final hotels = _filterHotels(snapshot.data ?? []);
+              if (hotels.isEmpty) {
+                return const Center(
+                  child: Text('Không tìm th?y khách s?n phù h?p.'),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                itemCount: hotels.length,
+                itemBuilder: (_, index) {
+                  final hotel = hotels[index];
+                  final distance = _distanceOf(hotel);
+                  return HotelCard(
+                    hotel: hotel,
+                    distanceKm: distance,
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/hotel',
+                      arguments: hotel,
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -210,32 +418,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRecommendations(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 16),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Đề xuất cho bạn',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Text('Những khách sạn được đánh giá cao, phù hợp với hành trình sắp tới.'),
-        ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: AnimatedBuilder(
-            animation: AuthState.I,
-            builder: (_, __) {
-              if (AuthState.I.currentUser == null) {
-                return _RecommendationLoginCard(
-                  onPressed: () => Navigator.pushNamed(context, '/login'),
-                );
-              }
-              return const SizedBox.shrink();
-            },
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Gợi ý cho bạn',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Những khách sạn được đánh giá cao nhất trong hệ thống StayEasy.',
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -245,23 +442,31 @@ class _HomeScreenState extends State<HomeScreen> {
               if (snapshot.connectionState != ConnectionState.done) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final hotels = (snapshot.data ?? []).where((h) => h.rating >= 4.5).toList();
+              final hotels = (snapshot.data ?? [])
+                  .where((h) => h.rating >= 4.5)
+                  .toList();
               if (hotels.isEmpty) {
-                return const Center(child: Text('Chưa có dữ liệu gợi ý. Vui lòng thử lại sau!'));
+                return const Center(
+                  child: Text('Chưa có dữ liệu gợi ý. Vui lòng thử lại sau!'),
+                );
               }
               return ListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
                 itemCount: hotels.length,
-                itemBuilder: (_, index) => HotelCard(
-                  hotel: hotels[index],
-                  distanceKm: _locationService.distanceKm(
-                    latitude: hotels[index].latitude,
-                    longitude: hotels[index].longitude,
-                    from: _currentPosition,
-                  ),
-                  heroTag: 'rec-',
-                  onTap: () => Navigator.pushNamed(context, '/hotel', arguments: hotels[index]),
-                ),
+                itemBuilder: (_, index) {
+                  final hotel = hotels[index];
+                  final distance = _distanceOf(hotel);
+                  return HotelCard(
+                    hotel: hotel,
+                    distanceKm: distance,
+                    heroTag: 'rec-',
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/hotel',
+                      arguments: hotel,
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -269,7 +474,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-
 }
 
 class _LocationInfoBanner extends StatelessWidget {
@@ -297,7 +501,10 @@ class _LocationInfoBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(isError ? Icons.error_outline : Icons.my_location, color: iconColor),
+          Icon(
+            isError ? Icons.error_outline : Icons.my_location,
+            color: iconColor,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -309,58 +516,16 @@ class _LocationInfoBanner extends StatelessWidget {
             ),
           ),
           if (loading)
-            const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
           else if (onRetry != null)
-            TextButton(onPressed: onRetry, child: Text(isError ? 'Thử lại' : 'Cập nhật')),
-        ],
-      ),
-    );
-  }
-}
-
-class _RecommendationLoginCard extends StatelessWidget {
-  const _RecommendationLoginCard({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E88E5), Color(0xFF64B5F6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Đăng nhập để nhận gợi ý riêng',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'StayEasy sẽ dựa trên lịch sử và sở thích của bạn để gợi ý khách sạn phù hợp.',
-            style: TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 44,
-            child: ElevatedButton.icon(
-              onPressed: onPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF1E88E5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              icon: const Icon(Icons.login),
-              label: const Text('Đăng nhập ngay'),
+            TextButton(
+              onPressed: onRetry,
+              child: Text(isError ? 'Thử lại' : 'Cập nhật'),
             ),
-          ),
         ],
       ),
     );
