@@ -22,6 +22,7 @@ import 'package:stayeasy/models/booking.dart';
 import 'package:stayeasy/models/hotel.dart';
 import 'package:stayeasy/models/room.dart';
 import 'config/stripe_config.dart';
+import 'config/theme.dart';
 
 const kBrandBlue = Color(0xFF1E88E5);
 const kRadius = 16.0;
@@ -40,86 +41,13 @@ class StayEasyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = ThemeData(useMaterial3: true);
+    final base = ThemeData();
 
     return MaterialApp(
       title: 'StayEasy',
       debugShowCheckedModeBanner: false,
       initialRoute: '/splash',
-      theme: base.copyWith(
-        colorScheme: base.colorScheme.copyWith(
-          primary: kBrandBlue,
-          secondary: const Color(0xFF2E3A59),
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF8F9FB),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-        ),
-        cardTheme: CardThemeData(
-          color: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(kRadius),
-          ),
-        ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: kBrandBlue,
-          unselectedItemColor: Color(0xFFBDBDBD),
-          showUnselectedLabels: true,
-          selectedLabelStyle: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-          selectedIconTheme: IconThemeData(size: 22),
-          unselectedIconTheme: IconThemeData(size: 22),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          focusedBorder: const OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-            borderSide: BorderSide(color: kBrandBlue, width: 1.4),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandBlue,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            elevation: 0,
-          ),
-        ),
-        dividerTheme: DividerThemeData(
-          color: Colors.grey.shade200,
-          space: 24,
-          thickness: 1,
-        ),
-      ),
+      theme: AppTheme.buildTheme(base),
       routes: {
         '/splash': (_) => const SplashScreen(),
         '/home': (_) => const HomeScreen(),

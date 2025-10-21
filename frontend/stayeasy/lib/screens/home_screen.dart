@@ -7,6 +7,8 @@ import '../services/location_service.dart';
 import '../state/auth_state.dart';
 import '../widgets/hotel_card.dart';
 import 'profile_screen.dart';
+import 'my_trips_screen.dart';
+import 'voucher_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -47,14 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onNavTap(int value) {
-    if (value == 2) {
-      Navigator.pushNamed(context, '/trips');
-      return;
-    }
-    if (value == 3) {
-      Navigator.pushNamed(context, '/voucher');
-      return;
-    }
+    // switch tabs instead of pushing new routes so bottom navigation stays visible
     setState(() => _index = value);
   }
 
@@ -186,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return hotels.where((hotel) {
       if (_query.isNotEmpty) {
         final q = _query.toLowerCase();
-        final target = '${hotel.name} ${hotel.address} ${hotel.city}'
+        final target = '${hotel.name} ${hotel.address} ${hotel.city ?? ''}'
             .toLowerCase();
         if (!target.contains(q)) return false;
       }
@@ -204,8 +199,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final tabs = [
       _buildHotels(context),
       _buildRecommendations(context),
-      const SizedBox.shrink(),
-      const SizedBox.shrink(),
+      // embed trips and vouchers so the bottom nav remains visible like in Recommendations
+      const MyTripsScreen(embedded: true),
+      const VoucherScreen(embedded: true),
       const ProfileScreen(),
     ];
 
@@ -388,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen> {
               final hotels = _filterHotels(snapshot.data ?? []);
               if (hotels.isEmpty) {
                 return const Center(
-                  child: Text('Không tìm th?y khách s?n phù h?p.'),
+                  child: Text('Không tìm thấy khách sạn phù hợp.'),
                 );
               }
 
@@ -526,6 +522,61 @@ class _LocationInfoBanner extends StatelessWidget {
               onPressed: onRetry,
               child: Text(isError ? 'Thử lại' : 'Cập nhật'),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecommendationLoginCard extends StatelessWidget {
+  const _RecommendationLoginCard({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E88E5), Color(0xFF64B5F6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Đăng nhập để nhận gợi ý riêng',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'StayEasy dựa trên lịch sử và sở thích của bạn để đề xuất khách sạn phù hợp.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF1E88E5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.login),
+              label: const Text('Đăng nhập để sử dụng ngay'),
+            ),
+          ),
         ],
       ),
     );

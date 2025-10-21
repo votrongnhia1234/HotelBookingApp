@@ -72,7 +72,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-
+  String _formatDate(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) {
+      return DateFormat('dd/MM/yyyy').format(parsed);
+    }
+    final parts = raw.split(' ');
+    return parts.first;
+  }
 
   String _formatCurrency(num value) => _currencyFormat.format(value);
 
@@ -179,7 +186,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final customerPhone = (user?.phone ?? '').trim();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Thanh to�n')),
+      appBar: AppBar(title: const Text('Thanh toán')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -306,7 +313,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                   const Divider(),
                   _amountRow(
-                    'Thanh to�n',
+                    'Thanh toán',
                     _formatCurrency(_netAmount),
                     bold: true,
                   ),

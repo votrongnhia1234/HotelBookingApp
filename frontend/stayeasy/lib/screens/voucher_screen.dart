@@ -5,7 +5,10 @@ import 'package:stayeasy/services/voucher_service.dart';
 import 'package:stayeasy/state/auth_state.dart';
 
 class VoucherScreen extends StatefulWidget {
-  const VoucherScreen({super.key});
+  const VoucherScreen({super.key, this.embedded = false});
+
+  // when embedded in HomeScreen's tabs we don't render an AppBar/Scaffold
+  final bool embedded;
 
   @override
   State<VoucherScreen> createState() => _VoucherScreenState();
@@ -37,36 +40,42 @@ class _VoucherScreenState extends State<VoucherScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final content = FutureBuilder<List<Voucher>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          final err = snapshot.error;
+          if (err is _AuthRequiredException) {
+            return _buildAuthPrompt(context);
+          }
+          return Center(child: Text('Không thể tải ưu đãi: $err'));
+        }
+        final vouchers = snapshot.data ?? [];
+        if (vouchers.isEmpty) {
+          return const Center(
+            child: Text('Hiện chưa có ưu đãi nào cho tài khoản của bạn.'),
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            itemCount: vouchers.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (_, index) => _VoucherCard(voucher: vouchers[index]),
+          ),
+        );
+      },
+    );
+
+    if (widget.embedded) return content;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Ưu đãi của bạn')),
-      body: FutureBuilder<List<Voucher>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            final err = snapshot.error;
-            if (err is _AuthRequiredException) {
-              return _buildAuthPrompt(context);
-            }
-            return Center(child: Text('Không thể tải ưu đãi: $err'));
-          }
-          final vouchers = snapshot.data ?? [];
-          if (vouchers.isEmpty) {
-            return const Center(child: Text('Hiện chưa có ưu đãi nào cho tài khoản của bạn.'));
-          }
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: vouchers.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, index) => _VoucherCard(voucher: vouchers[index]),
-            ),
-          );
-        },
-      ),
+      body: content,
     );
   }
 
@@ -96,16 +105,22 @@ class _VoucherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currency = NumberFormat.currency(locale: 'vi_VN', symbol: '₫', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+      decimalDigits: 0,
+    );
     final valueText = voucher.discountType == 'percent'
         ? '${voucher.value}%'
         : currency.format(voucher.value);
     final conditions = <String>[
-      if (voucher.minOrder != null) 'Đơn tối thiểu ${currency.format(voucher.minOrder)}',
+      if (voucher.minOrder != null)
+        'Đơn tối thiểu ${currency.format(voucher.minOrder)}',
       if (voucher.nightsRequired != null && voucher.nightsRequired! > 0)
         'Tối thiểu ${voucher.nightsRequired} đêm',
       if (voucher.onlineOnly) 'Chỉ áp dụng thanh toán online',
-      if (voucher.expiry != null) 'HSD: ${DateFormat('dd/MM/yyyy').format(voucher.expiry!)}',
+      if (voucher.expiry != null)
+        'HSD: ${DateFormat('dd/MM/yyyy').format(voucher.expiry!)}',
     ].join(' • ');
 
     return Card(
@@ -123,25 +138,35 @@ class _VoucherCard extends StatelessWidget {
                     children: [
                       Text(
                         voucher.code,
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         voucher.title,
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF4E8),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     valueText,
-                    style: const TextStyle(color: Color(0xFFFF8A00), fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: Color(0xFFFF8A00),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -152,7 +177,9 @@ class _VoucherCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 conditions,
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.black54),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.black54,
+                ),
               ),
             ],
             if (voucher.recommended) ...[
@@ -198,7 +225,10 @@ class _RecommendedBadge extends StatelessWidget {
           SizedBox(width: 6),
           Text(
             'Đề xuất cho bạn',
-            style: TextStyle(color: Color(0xFF1D4ED8), fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Color(0xFF1D4ED8),
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

@@ -84,7 +84,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
                   children: [
                     const SizedBox(height: 12),
                     Text(
-                      '�i?m d?n n?i b?t g?n ',
+                      'Điểm đến nổi bật gần đây',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
@@ -176,7 +176,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
                       const Icon(Icons.error_outline, color: Colors.redAccent),
                       const SizedBox(height: 8),
                       Text(
-                        'Không thể tải danh sách phòng cho khách sạn (ID = ).',
+                        'Không thể tải danh sách phòng cho khách sạn (ID = ${hotel.id}).',
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
