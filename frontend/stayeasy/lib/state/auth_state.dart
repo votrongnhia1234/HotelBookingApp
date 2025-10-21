@@ -11,6 +11,8 @@ class AuthState extends ChangeNotifier {
   String? token;
 
   bool get isLoggedIn => currentUser != null && (token ?? '').isNotEmpty;
+  bool get isAdmin => currentUser?.role == 'admin';
+  bool get isHotelManager => currentUser?.role == 'hotel_manager';
 
   Future<void> loadFromStorage() async {
     final sp = await SharedPreferences.getInstance();

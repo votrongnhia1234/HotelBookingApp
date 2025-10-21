@@ -2,18 +2,20 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import router from "./routes/index.routes.js";
+import { stripeWebhookHandler } from "./routes/payments.routes.js";
 import { notFound, errorHandler } from "./middleware/error.js";
 
 dotenv.config();
 const app = express();
 
-app.use(cors());  // Dùng cors từ import
+app.use(cors());
 
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
+app.post("/api/payments/webhook", express.raw({ type: "application/json" }), stripeWebhookHandler);
 app.use(express.json());
 
 app.get("/", (_req, res) => res.json({ status: "ok" }));

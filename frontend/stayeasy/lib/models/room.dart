@@ -5,6 +5,7 @@ class Room {
   final String type;
   final int pricePerNight;
   final String status;
+  final String imageUrl;
 
   Room({
     required this.id,
@@ -13,6 +14,7 @@ class Room {
     required this.type,
     required this.pricePerNight,
     required this.status,
+    this.imageUrl = '',
   });
 
   static int _toInt(dynamic v) {
@@ -36,5 +38,6 @@ class Room {
     type: _toStr(j['type'] ?? j['roomType'] ?? j['room_type']),
     pricePerNight: _toInt(j['pricePerNight'] ?? j['price_per_night'] ?? j['price'] ?? j['amount']),
     status: _toStr(j['status'] ?? j['availability'] ?? j['state'] ?? 'available'),
+    imageUrl: _toStr(j['image_url'] ?? j['imageUrl']),
   );
 }

@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { hotelIdByBookingId, managerOwnsHotel } from "./_ownership.util.js";
+import { recordAudit } from "../utils/audit.js";
 
 const ACTIVE_STATUSES = new Set(["pending", "confirmed", "completed"]);
 
@@ -35,6 +36,56 @@ const hasOverlap = async (roomId, checkIn, checkOut, excludeBookingId = null) =>
     params,
   );
   return rows.length > 0;
+};
+
+export const getBookingSummary = async (req, res, next) => {
+  try {
+    const role = req.user?.role ?? "customer";
+    if (!["admin", "hotel_manager"].includes(role)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    let join = "";
+    let where = "1=1";
+    const params = [];
+
+    if (role === "hotel_manager") {
+      join =
+        " JOIN rooms r ON r.id = b.room_id JOIN hotel_managers hm ON hm.hotel_id = r.hotel_id";
+      where = "hm.user_id = ?";
+      params.push(req.user.id);
+    }
+
+    const [[row]] = await pool.query(
+      `SELECT
+          COUNT(*) AS total,
+          SUM(b.status = 'pending') AS pending,
+          SUM(b.status = 'confirmed') AS confirmed,
+          SUM(b.status = 'completed') AS completed,
+          SUM(b.status = 'cancelled') AS cancelled,
+          COALESCE(SUM(CASE WHEN b.status IN ('pending','confirmed','completed') THEN b.total_price END), 0) AS valuePipeline,
+          COALESCE(SUM(CASE WHEN b.status = 'completed' THEN b.total_price END), 0) AS valueCompleted
+        FROM bookings b
+        ${join}
+        WHERE ${where}`,
+      params,
+    );
+
+    res.json({
+      role,
+      summary: {
+        total: Number(row?.total ?? 0),
+        pending: Number(row?.pending ?? 0),
+        confirmed: Number(row?.confirmed ?? 0),
+        completed: Number(row?.completed ?? 0),
+        cancelled: Number(row?.cancelled ?? 0),
+        valuePipeline: Number(row?.valuePipeline ?? 0),
+        valueCompleted: Number(row?.valueCompleted ?? 0),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const listBookings = async (req, res, next) => {
@@ -195,6 +246,14 @@ export const cancelBooking = async (req, res, next) => {
       return res.status(500).json({ message: "Cancel booking failed" });
     }
 
+    await recordAudit({
+      userId: req.user?.id,
+      action: "booking.cancel",
+      targetType: "booking",
+      targetId: id,
+      metadata: { previousStatus: booking.status },
+    });
+
     res.json({ message: "Booking cancelled", id });
   } catch (err) {
     next(err);
@@ -216,6 +275,15 @@ export const completeBooking = async (req, res, next) => {
       }
     }
 
+    const [details] = await pool.query(
+      "SELECT status FROM bookings WHERE id = ? LIMIT 1",
+      [id],
+    );
+    if (!details.length) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    const previousStatus = details[0].status;
+
     const [result] = await pool.query(
       "UPDATE bookings SET status = 'completed' WHERE id = ? AND status IN ('pending','confirmed')",
       [id],
@@ -223,6 +291,13 @@ export const completeBooking = async (req, res, next) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Booking not updatable or not found" });
     }
+    await recordAudit({
+      userId: req.user?.id,
+      action: "booking.complete",
+      targetType: "booking",
+      targetId: id,
+      metadata: { previousStatus },
+    });
     res.json({ message: "Booking marked as completed" });
   } catch (err) {
     next(err);
@@ -286,6 +361,14 @@ export const updateBookingStatus = async (req, res, next) => {
     if (updateResult.affectedRows === 0) {
       return res.status(500).json({ message: "Update failed" });
     }
+
+    await recordAudit({
+      userId: req.user?.id,
+      action: "booking.status.update",
+      targetType: "booking",
+      targetId: id,
+      metadata: { previousStatus: booking.status, newStatus: status },
+    });
 
     res.json({ message: "Booking status updated", id, status });
   } catch (err) {

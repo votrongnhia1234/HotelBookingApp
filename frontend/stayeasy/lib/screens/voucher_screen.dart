@@ -102,6 +102,8 @@ class _VoucherCard extends StatelessWidget {
         : currency.format(voucher.value);
     final conditions = <String>[
       if (voucher.minOrder != null) 'Đơn tối thiểu ${currency.format(voucher.minOrder)}',
+      if (voucher.nightsRequired != null && voucher.nightsRequired! > 0)
+        'Tối thiểu ${voucher.nightsRequired} đêm',
       if (voucher.onlineOnly) 'Chỉ áp dụng thanh toán online',
       if (voucher.expiry != null) 'HSD: ${DateFormat('dd/MM/yyyy').format(voucher.expiry!)}',
     ].join(' • ');

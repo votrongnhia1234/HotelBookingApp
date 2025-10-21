@@ -5,15 +5,44 @@ import {
   completeBooking,
   updateBookingStatus,
   cancelBooking,
+  getBookingSummary,
 } from "../controllers/bookings.controller.js";
-import { protect, authorize } from "../middleware/auth.js";
+import {
+  protect,
+  authorize,
+  authorizeAdminOrManager,
+  authorizeHotelOwnership,
+} from "../middleware/auth.js";
+import { hotelIdByBookingId } from "../controllers/_ownership.util.js";
 
 const router = Router();
 
 router.get("/", protect, authorize("customer", "admin", "hotel_manager"), listBookings);
+router.get(
+  "/summary",
+  protect,
+  authorizeAdminOrManager,
+  getBookingSummary,
+);
 router.post("/", protect, authorize("customer", "admin", "hotel_manager"), createBooking);
-router.patch("/:id/status", protect, authorize("admin", "hotel_manager"), updateBookingStatus);
-router.patch("/:id/complete", protect, authorize("admin", "hotel_manager"), completeBooking);
+router.patch(
+  "/:id/status",
+  protect,
+  authorizeAdminOrManager,
+  authorizeHotelOwnership((req) => hotelIdByBookingId(Number(req.params.id)), {
+    allowNullForAdmin: true,
+  }),
+  updateBookingStatus,
+);
+router.patch(
+  "/:id/complete",
+  protect,
+  authorizeAdminOrManager,
+  authorizeHotelOwnership((req) => hotelIdByBookingId(Number(req.params.id)), {
+    allowNullForAdmin: true,
+  }),
+  completeBooking,
+);
 router.patch("/:id/cancel", protect, authorize("customer", "admin", "hotel_manager"), cancelBooking);
 
 export default router;

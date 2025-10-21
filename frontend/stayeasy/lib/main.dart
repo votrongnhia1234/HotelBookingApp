@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'firebase_options.dart';
 // Screens
 import 'screens/booking_screen.dart';
@@ -13,6 +14,8 @@ import 'screens/profile_screen.dart';
 import 'screens/review_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/voucher_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
+import 'screens/partner_dashboard_screen.dart';
 
 // State
 import 'package:stayeasy/state/auth_state.dart';
@@ -21,12 +24,15 @@ import 'package:stayeasy/state/auth_state.dart';
 import 'package:stayeasy/models/booking.dart';
 import 'package:stayeasy/models/hotel.dart';
 import 'package:stayeasy/models/room.dart';
+import 'config/stripe_config.dart';
 
 const kBrandBlue = Color(0xFF1E88E5);
 const kRadius = 16.0;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  stripe.Stripe.publishableKey = StripeConfig.publishableKey;
+  await stripe.Stripe.instance.applySettings();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await AuthState.I.loadFromStorage();
   runApp(const StayEasyApp());
@@ -113,6 +119,8 @@ class StayEasyApp extends StatelessWidget {
         '/trips': (_) => const MyTripsScreen(),
         '/profile': (_) => const ProfileScreen(),
         '/voucher': (_) => const VoucherScreen(),
+        '/admin-dashboard': (_) => const AdminDashboardScreen(),
+        '/partner-dashboard': (_) => const PartnerDashboardScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -144,4 +152,3 @@ class StayEasyApp extends StatelessWidget {
     );
   }
 }
-

@@ -1,26 +1,45 @@
 import '../config/api_constants.dart';
-import '../models/payment.dart';
 import '../utils/api_data_parser.dart';
 import 'api_service.dart';
+
+class PaymentIntentResult {
+  PaymentIntentResult({this.clientSecret, this.status, this.amount});
+
+  final String? clientSecret;
+  final String? status;
+  final double? amount;
+
+  bool get requiresStripeSheet => clientSecret != null;
+}
 
 class PaymentService {
   PaymentService(this._apiService);
   final ApiService _apiService;
 
-  Future<Payment> createPayment({
+  Future<PaymentIntentResult> createPayment({
     required int bookingId,
     required double amount,
     required String method, // 'cod' | 'online'
+    String currency = 'usd',
   }) async {
-    final resp = await _apiService.post(ApiConstants.payments, {
+    final response = await _apiService.post(ApiConstants.payments, {
       'booking_id': bookingId,
       'amount': amount,
       'method': method,
+      'currency': currency,
     });
 
-    // Chuẩn hoá: server có thể trả thẳng object hoặc bọc trong {data}/ {payment}
-    final m = ApiDataParser.asMap(resp);
-    final inner = m['payment'] ?? m['data'] ?? m;
-    return Payment.fromJson(Map<String, dynamic>.from(inner));
+    final map = ApiDataParser.asMap(response);
+
+    if (map['clientSecret'] != null) {
+      return PaymentIntentResult(clientSecret: map['clientSecret']?.toString());
+    }
+
+    final inner = Map<String, dynamic>.from(map['data'] ?? map);
+    final amountValue = inner['amount'];
+    return PaymentIntentResult(
+      status: inner['status']?.toString(),
+      amount: amountValue is num ? amountValue.toDouble() : null,
+    );
   }
 }

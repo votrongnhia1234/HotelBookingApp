@@ -3,12 +3,14 @@ class User {
   final String name;
   final String email;
   final String phone;
+  final String role;
 
   User({
     required this.id,
     required this.name,
     required this.email,
     required this.phone,
+    required this.role,
   });
 
   static int _toInt(dynamic v) {
@@ -30,6 +32,7 @@ class User {
     name: _toStr(j['name'] ?? j['fullName'] ?? j['username']),
     email: _toStr(j['email']),
     phone: _toStr(j['phone'] ?? j['phoneNumber']),
+    role: _toStr(j['role'] ?? ''),
   );
 
   Map<String, dynamic> toJson() => {
@@ -37,5 +40,6 @@ class User {
     'name': name,
     'email': email,
     'phone': phone,
+    'role': role,
   };
 }

@@ -28,3 +28,11 @@ export const hotelIdByBookingId = async (bookingId) => {
   );
   return rows[0]?.hotel_id ?? null;
 };
+
+export const hotelIdByVoucherId = async (voucherId) => {
+  const [rows] = await pool.query(
+    "SELECT hotel_id FROM vouchers WHERE id=? LIMIT 1",
+    [voucherId]
+  );
+  return rows[0]?.hotel_id ?? null;
+};

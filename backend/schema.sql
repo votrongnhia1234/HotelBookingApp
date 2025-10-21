@@ -98,9 +98,11 @@ CREATE TABLE payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     booking_id INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    method ENUM('cash','credit_card','paypal','bank_transfer') NOT NULL,
-    status ENUM('pending','completed','failed','refunded') DEFAULT 'pending',
+    method VARCHAR(50) NOT NULL,
+    status VARCHAR(30) DEFAULT 'pending',
     transaction_id VARCHAR(255) UNIQUE,
+    currency VARCHAR(10) DEFAULT 'usd',
+    provider VARCHAR(30) DEFAULT 'manual',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
@@ -219,6 +221,39 @@ INSERT INTO payments (booking_id, amount, method, status, transaction_id) VALUES
 (8, 3000000, 'cash', 'failed', 'txn_008'),
 (9, 10000000, 'credit_card', 'completed', 'txn_009'),
 (10, 4000000, 'paypal', 'pending', 'txn_010');
+
+-- ==========================
+-- Bảng vouchers
+-- ==========================
+CREATE TABLE IF NOT EXISTS vouchers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  discount_type ENUM('percent','amount') NOT NULL DEFAULT 'amount',
+  value INT NOT NULL,
+  min_order INT DEFAULT NULL,
+  online_only TINYINT(1) DEFAULT 0,
+  expiry_date DATE DEFAULT NULL,
+  nights_required INT DEFAULT NULL,
+  is_active TINYINT(1) DEFAULT 1,
+  hotel_id INT DEFAULT NULL,
+  created_by INT DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_vouchers_hotel FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE SET NULL,
+  CONSTRAINT fk_vouchers_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS hotel_managers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  hotel_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_manager_hotel (user_id, hotel_id),
+  CONSTRAINT fk_hotel_managers_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_hotel_managers_hotel FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
+);
 -- ==========================
 -- Index tối ưu
 -- ==========================
@@ -226,3 +261,46 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_rooms_hotel ON rooms(hotel_id, room_number);
 CREATE INDEX idx_bookings_dates ON bookings(check_in, check_out);
 CREATE INDEX idx_payments_txn ON payments(transaction_id);
+CREATE INDEX idx_audit_action ON audit_logs(action);
+
+ALTER TABLE bookings
+ADD COLUMN check_in_time TIME NULL,
+ADD COLUMN check_out_time TIME NULL;
+
+
+ALTER TABLE payments 
+ADD COLUMN gateway VARCHAR(50) DEFAULT 'local';
+
+ALTER TABLE hotels
+ADD COLUMN latitude DECIMAL(10,6) NULL,
+ADD COLUMN longitude DECIMAL(10,6) NULL;
+
+CREATE TABLE vouchers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(50) UNIQUE NOT NULL,
+  discount_percent INT CHECK (discount_percent BETWEEN 0 AND 100),
+  expiry_date DATE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users (role_id, name, email, password, phone)
+VALUES (
+  (SELECT id FROM roles WHERE role_name='admin'),
+  'Admin Test',
+  'admin@test.com',
+  '$2a$10$...hash...',
+  '+84901234567'
+);
+
+INSERT INTO users (role_id, name, email, password, phone)
+VALUES (
+  (SELECT id FROM roles WHERE role_name='hotel_manager'),
+  'Partner Test',
+  'partner@test.com',
+  '$2a$10$...hash...',
+  '+84987654321'
+);
+
+ALTER TABLE hotels ADD COLUMN image_url VARCHAR(255) NULL;
+ALTER TABLE payments
+  ADD COLUMN provider VARCHAR(32) NULL AFTER transaction_id;  -- hoặc ENUM('stripe','momo','vnpay','zalopay','paypal','other')

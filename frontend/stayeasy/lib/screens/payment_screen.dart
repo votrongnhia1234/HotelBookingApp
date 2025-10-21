@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:intl/intl.dart';
 import 'package:stayeasy/models/booking.dart';
 import 'package:stayeasy/services/api_service.dart';
@@ -23,7 +24,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     decimalDigits: 0,
   );
 
-  String _method = 'cod';
+  String _method = 'online';
   bool _processing = false;
 
   Booking get _booking => widget.booking;
@@ -39,28 +40,87 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   String _formatCurrency(num value) => _currencyFormat.format(value);
 
+  Future<void> _handleOfflinePayment() async {
+    final result = await _paymentService.createPayment(
+      bookingId: _booking.id,
+      amount: _booking.totalPrice,
+      method: 'cod',
+      currency: 'vnd',
+    );
+
+    if (!mounted) return;
+    final updatedBooking = _booking.copyWith(
+      status: result.status ?? 'confirmed',
+      totalAmount: result.amount ?? _booking.totalAmount,
+    );
+    Navigator.pushReplacementNamed(
+      context,
+      '/success',
+      arguments: {
+        'booking': updatedBooking,
+        'payAmount': updatedBooking.totalPrice,
+        'payMethod': 'cod',
+        'voucher': null,
+      },
+    );
+  }
+
+  Future<void> _handleStripePayment() async {
+    final result = await _paymentService.createPayment(
+      bookingId: _booking.id,
+      amount: _booking.totalPrice,
+      method: 'online',
+      currency: 'vnd',
+    );
+
+    final clientSecret = result.clientSecret;
+    if (clientSecret == null) {
+      throw Exception('Không nhận được client secret từ máy chủ.');
+    }
+
+    await stripe.Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: stripe.SetupPaymentSheetParameters(
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: 'StayEasy',
+        style: ThemeMode.system,
+        googlePay: const stripe.PaymentSheetGooglePay(
+          merchantCountryCode: 'US',
+          currencyCode: 'VND',
+          testEnv: true,
+        ),
+        // Apple Pay yêu cầu merchant identifier, tạm thời tắt để tránh crash khi chưa cấu hình.
+        applePay: null,
+      ),
+    );
+
+    await stripe.Stripe.instance.presentPaymentSheet();
+
+    if (!mounted) return;
+    final updatedBooking = _booking.copyWith(status: 'completed');
+    Navigator.pushReplacementNamed(
+      context,
+      '/success',
+      arguments: {
+        'booking': updatedBooking,
+        'payAmount': _booking.totalPrice,
+        'payMethod': 'stripe',
+        'voucher': null,
+      },
+    );
+  }
+
   Future<void> _makePayment() async {
     setState(() => _processing = true);
     try {
-      final payment = await _paymentService.createPayment(
-        bookingId: _booking.id,
-        amount: _booking.totalPrice,
-        method: _method,
-      );
+      if (_method == 'online') {
+        await _handleStripePayment();
+      } else {
+        await _handleOfflinePayment();
+      }
+    } on stripe.StripeException catch (e) {
       if (!mounted) return;
-      final updatedBooking = _booking.copyWith(
-        status: payment.status,
-        totalAmount: payment.amount,
-      );
-      Navigator.pushReplacementNamed(
-        context,
-        '/success',
-        arguments: {
-          'booking': updatedBooking,
-          'payAmount': payment.amount,
-          'payMethod': _method,
-          'voucher': null,
-        },
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.error.localizedMessage ?? 'Thanh toán bị hủy.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -88,7 +148,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               leading: const Icon(Icons.meeting_room),
               title: Text('Đơn đặt phòng #${_booking.id}'),
               subtitle: Text(
-                '${_formatDate(_booking.checkIn)} -> ${_formatDate(_booking.checkOut)}',
+                '${_formatDate(_booking.checkIn)} → ${_formatDate(_booking.checkOut)}',
               ),
             ),
           ),
@@ -97,7 +157,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: ListTile(
               leading: const Icon(Icons.person),
               title: Text('Khách: ${customerName.isEmpty ? 'Chưa cập nhật' : customerName}'),
-              subtitle: Text('Số điện thoại: ${customerPhone.isEmpty ? 'Chưa cập nhật' : customerPhone}'),
+              subtitle: Text(
+                'Số điện thoại: ${customerPhone.isEmpty ? 'Chưa cập nhật' : customerPhone}',
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -105,15 +167,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: Column(
               children: [
                 _optionTile(
-                  value: 'cod',
-                  title: 'Thanh toán tại khách sạn',
-                  subtitle: 'Trả tiền khi nhận phòng',
+                  value: 'online',
+                  title: 'Thanh toán trực tuyến',
+                  subtitle: 'Thẻ Visa/Master, Apple Pay, Google Pay…',
                 ),
                 const Divider(height: 0),
                 _optionTile(
-                  value: 'online',
-                  title: 'Thanh toán trực tuyến',
-                  subtitle: 'Ví điện tử, thẻ ngân hàng, ...',
+                  value: 'cod',
+                  title: 'Thanh toán tại khách sạn',
+                  subtitle: 'Trả tiền khi nhận phòng',
                 ),
               ],
             ),
@@ -142,8 +204,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
             const Center(child: CircularProgressIndicator())
           else
             CustomButton(
-              label: 'Hoàn tất',
+              label: _method == 'online' ? 'Thanh toán' : 'Hoàn tất',
               onPressed: _makePayment,
+              icon: _method == 'online' ? Icons.lock : Icons.check_circle_outline,
             ),
         ],
       ),

@@ -11,6 +11,7 @@ class Voucher {
   final bool onlineOnly;
   final DateTime? expiry;
   final bool recommended;
+  final int? nightsRequired;
 
   Voucher({
     required this.id,
@@ -23,6 +24,7 @@ class Voucher {
     this.onlineOnly = false,
     this.expiry,
     this.recommended = false,
+    this.nightsRequired,
   });
 
   factory Voucher.fromJson(Map<String, dynamic> j) => Voucher(
@@ -37,6 +39,9 @@ class Voucher {
     onlineOnly: (j['onlineOnly'] ?? j['online_only'] ?? false) == true,
     expiry: j['expiry'] == null ? null : DateTime.tryParse('${j['expiry']}'),
     recommended: (j['recommended'] ?? false) == true,
+    nightsRequired: j['nightsRequired'] == null
+        ? null
+        : ((j['nightsRequired'] is num) ? (j['nightsRequired'] as num).toInt() : int.tryParse('${j['nightsRequired']}')),
   );
 
   /// Tính mức giảm, có xét minOrder và onlineOnly theo method ('cod' | 'online')

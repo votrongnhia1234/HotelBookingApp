@@ -1,5 +1,6 @@
 import '../config/api_constants.dart';
 import '../models/booking.dart';
+import '../models/booking_summary.dart';
 import 'api_service.dart';
 import '../utils/api_data_parser.dart';
 import '../state/auth_state.dart';
@@ -35,5 +36,15 @@ class BookingService {
 
   Future<void> cancelBooking(int bookingId) async {
     await _api.patch(ApiConstants.cancelBooking(bookingId), {});
+  }
+
+  Future<({String role, BookingSummary summary})> fetchSummary() async {
+    final raw = await _api.get('${ApiConstants.bookings}/summary');
+    final mapped = ApiDataParser.map(raw);
+    final summaryJson = Map<String, dynamic>.from(mapped['summary'] ?? {});
+    return (
+      role: mapped['role']?.toString() ?? '',
+      summary: BookingSummary.fromJson(summaryJson),
+    );
   }
 }

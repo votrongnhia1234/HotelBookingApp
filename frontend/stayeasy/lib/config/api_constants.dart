@@ -25,6 +25,9 @@ class ApiConstants {
   static const String payments = '/payments';
   static const String vouchers = '/vouchers';
 
+  // Admin
+  static const String adminDashboard = '/admin/stats/dashboard';
+
   // Reviews
   static String reviewsGetByHotel(int hotelId) => '/reviews/hotel/$hotelId';
   static const String reviews = '/reviews';

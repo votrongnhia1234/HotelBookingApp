@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'package:http/http.dart' as http;
 import '../config/api_constants.dart';
 import '../state/auth_state.dart';
@@ -27,9 +28,9 @@ class ApiService {
 
   Future<dynamic> get(String path, {Map<String, String>? headers}) async {
     final url = _build(path);
-    if (_log) print('[GET] $url');
+    if (_log) dev.log('[GET] $url', name: 'ApiService');
     final resp = await http.get(url, headers: _headers(headers));
-    if (_log) print('[GET] ${resp.statusCode} ${resp.body}');
+    if (_log) dev.log('[GET] ${resp.statusCode} ${resp.body}', name: 'ApiService');
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       return jsonDecode(utf8.decode(resp.bodyBytes));
     }
@@ -39,13 +40,13 @@ class ApiService {
   Future<dynamic> post(String path, Map<String, dynamic> body,
       {Map<String, String>? headers}) async {
     final url = _build(path);
-    if (_log) print('[POST] $url\nBody: $body');
+    if (_log) dev.log('[POST] $url\nBody: $body', name: 'ApiService');
     final resp = await http.post(
       url,
       headers: _headers(headers),
       body: jsonEncode(body),
     );
-    if (_log) print('[POST] ${resp.statusCode} ${resp.body}');
+    if (_log) dev.log('[POST] ${resp.statusCode} ${resp.body}', name: 'ApiService');
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       return jsonDecode(utf8.decode(resp.bodyBytes));
     }
@@ -55,13 +56,13 @@ class ApiService {
   Future<dynamic> patch(String path, Map<String, dynamic> body,
       {Map<String, String>? headers}) async {
     final url = _build(path);
-    if (_log) print('[PATCH] $url\nBody: $body');
+    if (_log) dev.log('[PATCH] $url\nBody: $body', name: 'ApiService');
     final resp = await http.patch(
       url,
       headers: _headers(headers),
       body: jsonEncode(body),
     );
-    if (_log) print('[PATCH] ${resp.statusCode} ${resp.body}');
+    if (_log) dev.log('[PATCH] ${resp.statusCode} ${resp.body}', name: 'ApiService');
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       if (resp.bodyBytes.isEmpty) return null;
       return jsonDecode(utf8.decode(resp.bodyBytes));

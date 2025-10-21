@@ -10,21 +10,42 @@ class RoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget buildImage() {
+      Widget placeholder() {
+        return Container(
+          height: 64,
+          width: 64,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.bed, size: 28, color: Colors.black54),
+        );
+      }
+
+      if (room.imageUrl.isEmpty) {
+        return placeholder();
+      }
+
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          room.imageUrl,
+          width: 64,
+          height: 64,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => placeholder(),
+        ),
+      );
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Container(
-              height: 64,
-              width: 64,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.bed, size: 28, color: Colors.black54),
-            ),
+            buildImage(),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

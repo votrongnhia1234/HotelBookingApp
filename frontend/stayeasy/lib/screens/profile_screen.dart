@@ -84,6 +84,23 @@ class _Header extends StatelessWidget {
                       : user!.phone,
                   style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black54),
                 ),
+                if (!isGuest && user!.role.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _roleLabel(user!.role),
+                      style: const TextStyle(
+                        color: Color(0xFF1E88E5),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
                 if (isGuest) ...[
                   const SizedBox(height: 12),
                   SizedBox(
@@ -101,6 +118,17 @@ class _Header extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Quản trị viên';
+      case 'hotel_manager':
+        return 'Đối tác khách sạn';
+      default:
+        return 'Khách hàng';
+    }
   }
 }
 
@@ -187,6 +215,25 @@ class _MemberSections extends StatelessWidget {
               ],
             ),
           ),
+          if (AuthState.I.isAdmin || AuthState.I.isHotelManager) ...[
+            _SettingsGroup(
+              title: 'Bảng điều khiển',
+              items: [
+                if (AuthState.I.isAdmin)
+                  _SettingsItem(
+                    icon: Icons.admin_panel_settings_outlined,
+                    label: 'Dashboard quản trị',
+                    onTap: () => Navigator.pushNamed(context, '/admin-dashboard'),
+                  ),
+                if (AuthState.I.isHotelManager)
+                  _SettingsItem(
+                    icon: Icons.analytics_outlined,
+                    label: 'Số liệu đối tác',
+                    onTap: () => Navigator.pushNamed(context, '/partner-dashboard'),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           const _SettingsGroup(
             title: 'Cài đặt',
@@ -275,11 +322,12 @@ class _SettingsGroup extends StatelessWidget {
 }
 
 class _SettingsItem extends StatelessWidget {
-  const _SettingsItem({required this.icon, required this.label, this.value});
+  const _SettingsItem({required this.icon, required this.label, this.value, this.onTap});
 
   final IconData icon;
   final String label;
   final String? value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +337,7 @@ class _SettingsItem extends StatelessWidget {
       trailing: value != null
           ? Text(value!, style: const TextStyle(color: Colors.black45))
           : const Icon(Icons.chevron_right),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }
