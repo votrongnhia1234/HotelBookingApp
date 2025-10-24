@@ -19,6 +19,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _addressController = TextEditingController();
 
   @override
@@ -38,6 +39,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       _profile = profile;
       _nameController.text = profile.name;
       _phoneController.text = profile.phone;
+      _emailController.text = profile.email;
       _addressController.text = profile.address ?? '';
     } catch (e) {
       if (!mounted) return;
@@ -60,6 +62,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         address: _addressController.text.trim(),
+        email: _emailController.text.trim().isEmpty
+            ? null
+            : _emailController.text.trim(),
       );
       if (!mounted) return;
       _profile = profile;
@@ -83,6 +88,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _addressController.dispose();
     super.dispose();
   }
@@ -143,12 +149,21 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      readOnly: true,
-                      initialValue: _profile?.email ?? '',
+                      controller: _emailController,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email_outlined),
                       ),
+                      validator: (value) {
+                        final v = value?.trim() ?? '';
+                        if (v.isEmpty) return null; // optional field
+                        final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                        if (!emailRegex.hasMatch(v)) return 'Email không hợp lệ';
+                        if (v.endsWith('@firebase-user.stayeasy')) {
+                          return 'Vui lòng dùng email thật, không phải fallback';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

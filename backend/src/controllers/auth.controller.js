@@ -192,7 +192,7 @@ export const loginWithFirebase = async (req, res, next) => {
         });
 
         const mailOptions = {
-          from: process.env.SMTP_FROM || 'no-reply@stayeasy.example',
+          from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@stayeasy.example',
           to: recipient,
           subject: 'Thông báo đăng nhập mới vào StayEasy',
           text: `Chúng tôi nhận thấy một lần đăng nhập mới vào tài khoản StayEasy của bạn. Nếu bạn vừa đăng nhập, bạn có thể bỏ qua email này. Nếu không phải bạn, vui lòng đổi mật khẩu hoặc liên hệ với hỗ trợ.`,

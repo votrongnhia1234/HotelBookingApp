@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'firebase_options.dart';
 import 'package:stayeasy/screens/booking_screen.dart';
@@ -37,11 +36,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     stripe.Stripe.publishableKey = StripeConfig.publishableKey;
-    if (!kIsWeb) {
-      await stripe.Stripe.instance.applySettings();
-    }
+    await stripe.Stripe.instance.applySettings();
   } catch (_) {
-    // Skip Stripe init on web or when not configured to avoid startup crash.
+    // Skip Stripe init when not supported or not configured.
   }
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await AuthState.I.loadFromStorage();

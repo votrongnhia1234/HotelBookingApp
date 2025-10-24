@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:stayeasy/models/booking.dart';
 import 'package:stayeasy/models/room.dart';
+import 'package:stayeasy/services/api_service.dart';
 import 'package:stayeasy/services/booking_service.dart';
 import 'package:stayeasy/state/auth_state.dart';
 import 'package:stayeasy/widgets/custom_button.dart';
@@ -90,9 +92,32 @@ class _BookingScreenState extends State<BookingScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Đặt phòng thất bại: $e')));
+      String msg = 'Đặt phòng thất bại. Vui lòng thử lại.';
+      if (e is ApiException) {
+        try {
+          final Map<String, dynamic> m = Map<String, dynamic>.from(
+            (e.body.isNotEmpty) ? (jsonDecode(e.body) as Map) : {},
+          );
+          final serverMsg = m['message']?.toString();
+          if (e.statusCode == 409) {
+            msg = serverMsg?.isNotEmpty == true
+                ? serverMsg!
+                : 'Phòng không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.';
+          } else if (serverMsg?.isNotEmpty == true) {
+            msg = serverMsg!;
+          }
+        } catch (_) {
+          if (e.statusCode == 409) {
+            msg =
+                'Phòng không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.';
+          } else {
+            msg = 'Đặt phòng thất bại (${e.statusCode}).';
+          }
+        }
+      } else {
+        msg = 'Đặt phòng thất bại: ${e.toString()}';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

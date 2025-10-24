@@ -20,11 +20,13 @@ class UserService {
     String? name,
     String? phone,
     String? address,
+    String? email,
   }) async {
     final body = <String, dynamic>{};
     if (name != null) body['name'] = name;
     if (phone != null) body['phone'] = phone;
     if (address != null) body['address'] = address;
+    if (email != null) body['email'] = email;
 
     final raw = await _api.patch(ApiConstants.userProfile, body);
     final map = ApiDataParser.map(raw);

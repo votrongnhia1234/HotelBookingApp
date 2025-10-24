@@ -22,7 +22,7 @@ export const getCurrentProfile = async (req, res, next) => {
 
 export const updateCurrentProfile = async (req, res, next) => {
   try {
-    const { name, phone, address } = req.body ?? {};
+    const { name, phone, address, email } = req.body ?? {};
     const fields = [];
     const values = [];
 
@@ -37,6 +37,22 @@ export const updateCurrentProfile = async (req, res, next) => {
     if (typeof address === "string") {
       fields.push("address = ?");
       values.push(address.trim());
+    }
+    if (typeof email === "string" && email.trim().length) {
+      const normalized = email.trim();
+      const fallbackSuffix = "@firebase-user.stayeasy";
+      if (normalized.endsWith(fallbackSuffix)) {
+        return res.status(400).json({ message: "Email không hợp lệ" });
+      }
+      const [[dupe]] = await pool.query(
+        "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
+        [normalized, req.user.id]
+      );
+      if (dupe) {
+        return res.status(409).json({ message: "Email đã được sử dụng" });
+      }
+      fields.push("email = ?");
+      values.push(normalized);
     }
 
     if (fields.length === 0) {
@@ -63,7 +79,8 @@ export const updateCurrentProfile = async (req, res, next) => {
     res.json({ data: rows[0] });
   } catch (err) {
     if (err?.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "Phone number already in use" });
+      const msg = String(err.message || "").includes("phone") ? "Phone number already in use" : "Duplicate value";
+      return res.status(409).json({ message: msg });
     }
     next(err);
   }

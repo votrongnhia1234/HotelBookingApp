@@ -76,6 +76,7 @@ class ApiConstants {
 
   // Payments
   static const String payments = '/payments';
+  static const String paymentsConfirmDemo = '/payments/confirm-demo';
   static const String vouchers = '/vouchers';
 
   // Admin

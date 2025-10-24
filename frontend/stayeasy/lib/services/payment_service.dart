@@ -42,4 +42,23 @@ class PaymentService {
       amount: amountValue is num ? amountValue.toDouble() : null,
     );
   }
+
+  Future<PaymentIntentResult> confirmDemo({
+    required int bookingId,
+    required double amount,
+    String currency = 'vnd',
+  }) async {
+    final response = await _apiService.post(ApiConstants.paymentsConfirmDemo, {
+      'booking_id': bookingId,
+      'amount': amount,
+      'currency': currency,
+    });
+    final map = ApiDataParser.asMap(response);
+    final inner = Map<String, dynamic>.from(map['data'] ?? map);
+    final amountValue = inner['amount'];
+    return PaymentIntentResult(
+      status: inner['status']?.toString(),
+      amount: amountValue is num ? amountValue.toDouble() : null,
+    );
+  }
 }
