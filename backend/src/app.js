@@ -4,11 +4,15 @@ import dotenv from "dotenv";
 import router from "./routes/index.routes.js";
 import { stripeWebhookHandler } from "./routes/payments.routes.js";
 import { notFound, errorHandler } from "./middleware/error.js";
+import path from 'path';
 
 dotenv.config();
 const app = express();
 
 app.use(cors());
+
+// serve uploaded files
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);

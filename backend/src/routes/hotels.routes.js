@@ -1,6 +1,92 @@
 import { Router } from "express";
-import { listHotels, getHotelCities } from "../controllers/hotels.controller.js";
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
+import {
+  listHotels,
+  getHotelCities,
+  listManagedHotels,
+  addHotelImage,
+  uploadHotelImage,
+  uploadHotelImagesBulk,
+  getHotelImages,
+  replaceHotelImage,
+  deleteHotelImage,
+} from "../controllers/hotels.controller.js";
+import { protect, authorizeAdminOrManager } from "../middleware/auth.js";
+
 const router = Router();
+
 router.get("/", listHotels);
 router.get("/cities", getHotelCities);
+router.get(
+  "/managed",
+  protect,
+  authorizeAdminOrManager,
+  listManagedHotels,
+);
+
+// Image CRUD for hotels
+router.post(
+  "/images",
+  protect,
+  authorizeAdminOrManager,
+  addHotelImage,
+);
+
+// multipart upload setup
+const hotelOriginalsDir = path.join(process.cwd(), "uploads", "hotels", "originals");
+fs.mkdirSync(hotelOriginalsDir, { recursive: true });
+
+const hotelStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, hotelOriginalsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const safe = crypto.randomBytes(10).toString("hex");
+    const name = `${Date.now()}-${safe}${ext}`;
+    cb(null, name);
+  },
+});
+
+const hotelUpload = multer({ storage: hotelStorage });
+
+router.post(
+  "/images/upload",
+  protect,
+  authorizeAdminOrManager,
+  hotelUpload.single("file"),
+  uploadHotelImage,
+);
+
+router.post(
+  "/images/upload-many",
+  protect,
+  authorizeAdminOrManager,
+  hotelUpload.array("files", 20),
+  uploadHotelImagesBulk,
+);
+
+router.get(
+  "/:id/images",
+  protect,
+  authorizeAdminOrManager,
+  getHotelImages,
+);
+
+router.patch(
+  "/images/:imageId",
+  protect,
+  authorizeAdminOrManager,
+  hotelUpload.single("file"),
+  replaceHotelImage,
+);
+
+router.delete(
+  "/images/:imageId",
+  protect,
+  authorizeAdminOrManager,
+  deleteHotelImage,
+);
+
 export default router;

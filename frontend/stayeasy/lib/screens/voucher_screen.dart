@@ -22,6 +22,20 @@ class _VoucherScreenState extends State<VoucherScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    AuthState.I.addListener(_onAuthChanged);
+  }
+
+  @override
+  void dispose() {
+    AuthState.I.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
+    if (!mounted) return;
+    setState(() {
+      _future = _load();
+    });
   }
 
   Future<List<Voucher>> _load() async {

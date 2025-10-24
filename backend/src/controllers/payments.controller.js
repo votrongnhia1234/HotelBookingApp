@@ -90,11 +90,70 @@ export const createPayment = async (req, res, next) => {
       });
     }
 
-    const paymentIntent = await createPaymentIntent({
-      amount,
-      currency,
-      metadata: { booking_id },
-    });
+    // ONLINE METHOD: handle zero-amount gracefully and currency fallback
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      const nextStatus = "confirmed";
+      const dbMethod = pickFromEnum("manual", methodAllowedValues, ["cash", "cod", "manual"]);
+      const dbStatus = pickFromEnum(nextStatus, statusAllowedValues, ["pending", "created"]);
+      const insertColumns = [
+        "booking_id",
+        "amount",
+        "method",
+        "status",
+        "transaction_id",
+        "provider",
+      ];
+      const updateSet = [
+        "amount=VALUES(amount)",
+        "status=VALUES(status)",
+        "method=VALUES(method)",
+        "provider='manual'",
+      ];
+      const params = [booking_id, 0, dbMethod, dbStatus, null, "manual"];
+      if (hasCurrencyColumn) {
+        insertColumns.push("currency");
+        updateSet.push("currency=VALUES(currency)");
+        params.push(currency);
+      }
+      const placeholders = insertColumns.map(() => "?").join(", ");
+      const sql = `INSERT INTO payments (${insertColumns.join(", ")})
+         VALUES (${placeholders})
+         ON DUPLICATE KEY UPDATE ${updateSet.join(", ")}`;
+      await pool.query(sql, params);
+      await pool.query("UPDATE bookings SET status = ? WHERE id = ?", [nextStatus, booking_id]);
+      return res.status(201).json({
+        data: {
+          booking_id,
+          amount: 0,
+          method: ONLINE_METHOD,
+          status: nextStatus,
+        },
+      });
+    }
+
+    let currencyToUse = currency;
+    let paymentIntent;
+    try {
+      paymentIntent = await createPaymentIntent({
+        amount,
+        currency: currencyToUse,
+        metadata: { booking_id },
+      });
+    } catch (err) {
+      const msg = String(err?.message ?? err);
+      // Fallback to USD if the requested currency is not supported
+      if (String(currencyToUse || '').toLowerCase() !== 'usd') {
+        currencyToUse = 'usd';
+        paymentIntent = await createPaymentIntent({
+          amount,
+          currency: currencyToUse,
+          metadata: { booking_id },
+        });
+      } else {
+        throw err;
+      }
+    }
 
     const dbMethod = pickFromEnum("stripe_card", methodAllowedValues, [
       "stripe",
@@ -125,7 +184,7 @@ export const createPayment = async (req, res, next) => {
     if (hasCurrencyColumn) {
       insertColumns.push("currency");
       updateSet.push("currency=VALUES(currency)");
-      params.push(currency);
+      params.push(currencyToUse);
     }
     const placeholders = insertColumns.map(() => "?").join(", ");
     const sql = `INSERT INTO payments (${insertColumns.join(", ")})

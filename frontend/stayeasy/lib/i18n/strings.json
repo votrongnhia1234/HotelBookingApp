@@ -1,0 +1,110 @@
+{
+  "lib/screens/home_screen.dart": [
+    "Bộ lọc",
+    "Xóa lọc",
+    "Đánh giá tối thiểu",
+    "Khoảng cách tối đa (km)",
+    "Bỏ giới hạn",
+    "Áp dụng",
+    "Tìm khách sạn, địa điểm...",
+    "Đang hiển thị theo vị trí hiện tại của bạn.",
+    "Đang xác định vị trí...",
+    "Không thể tải danh sách khách sạn.",
+    "Thử lại",
+    "Không tìm thấy khách sạn phù hợp.",
+    "Gợi ý cho bạn",
+    "Những khách sạn được đánh giá cao nhất trong hệ thống StayEasy.",
+    "Chưa có dữ liệu gợi ý. Vui lòng thử lại sau!",
+    "Đăng nhập để sử dụng ngay"
+  ],
+  "lib/screens/room_management_screen.dart": [
+    "Thêm phòng cho ${hotel.name}",
+    "Sẵn sàng",
+    "Đang được đặt",
+    "Bảo trì",
+    "Hủy",
+    "Thêm",
+    "Đã thêm phòng mới.",
+    "Không thể tạo phòng: $e",
+    "Đã cập nhật phòng ${room.roomNumber}",
+    "Không thể cập nhật trạng thái: $e",
+    "Đang tải ảnh...",
+    "Đã tải ảnh lên.",
+    "Không thể tải ảnh: $e",
+    "Quản lý phòng",
+    "Không thể tải danh sách khách sạn.",
+    "Thử lại",
+    "Chưa có khách sạn trong hệ thống.",
+    "Chưa có phòng cho khách sạn này."
+  ],
+  "lib/screens/booking_screen.dart": [
+    "Vui lòng đăng nhập để tiếp tục đặt phòng.",
+    "Đặt phòng thất bại: $e",
+    "Đặt phòng"
+  ],
+  "lib/screens/booking_success_screen.dart": [
+    "Đặt phòng thành công",
+    "Xem phòng đã đặt",
+    "Về trang chủ"
+  ],
+  "lib/screens/payment_screen.dart": [
+    "Thanh toán thất bại: ${e.toString()}",
+    "Thanh toán",
+    "Đơn đặt phòng #${_booking.id}",
+    "Đang tải ưu đãi cho bạn...",
+    "Không sử dụng voucher"
+  ],
+  "lib/screens/voucher_screen.dart": [
+    "Không thể tải ưu đãi: $err",
+    "Hiện chưa có ưu đãi nào cho tài khoản của bạn.",
+    "Ưu đãi của bạn",
+    "Đăng nhập để xem ưu đãi dành riêng cho bạn.",
+    "Đăng nhập"
+  ],
+  "lib/screens/my_trips_screen.dart": [
+    "Đã hủy đơn đặt phòng.",
+    "Không thể hủy đơn: $e",
+    "Vui lòng đăng nhập để xem đơn đặt phòng.",
+    "Đăng nhập",
+    "Không thể tải dữ liệu: $error",
+    "Bạn chưa có đơn đặt phòng nào."
+  ],
+  "lib/screens/review_screen.dart": [
+    "Vui lòng nhập nội dung đánh giá.",
+    "Gửi đánh giá thành công",
+    "Gửi đánh giá thất bại: $e",
+    "Đánh giá • ${hotel.name}",
+    "Chưa có đánh giá. Hãy là người đầu tiên!",
+    "Viết đánh giá",
+    "Gửi đánh giá"
+  ],
+  "lib/screens/profile_screen.dart": [
+    "Lợi ích khi đăng nhập",
+    "Bạn đã đăng xuất."
+  ],
+  "lib/screens/partner_dashboard_screen.dart": [
+    "Số liệu đối tác",
+    "Không thể tải dữ liệu: ${snapshot.error}",
+    "Tổng quan",
+    "Tổng số đơn: ${summary.total}",
+    "Giá trị pipeline: ${currency.format(summary.valuePipeline)}",
+    "Doanh thu đã hoàn tất: ${currency.format(summary.valueCompleted)}"
+  ],
+  "lib/screens/login_phone_screen.dart": [
+    "Lỗi: $message",
+    "Đã gửi mã OTP tới $phone",
+    "Đăng nhập thành công",
+    "Đã gửi lại OTP",
+    "Gửi lại mã"
+  ],
+  "lib/widgets/hotel_card.dart": [
+    "Không mở được bản đồ."
+  ],
+  "lib/widgets/room_card.dart": [
+    "Đặt"
+  ],
+  "lib/screens/admin_dashboard_screen.dart": [
+    "Bảng điều khiển quản trị",
+    "Không thể tải dữ liệu: ${snapshot.error}"
+  ]
+}

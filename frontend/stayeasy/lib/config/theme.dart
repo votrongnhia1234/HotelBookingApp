@@ -6,17 +6,19 @@ class AppTheme {
   static const double radius = 14.0;
 
   static ThemeData buildTheme(ThemeData base) {
-    final colorScheme = base.colorScheme.copyWith(
+    // Build a color scheme explicitly based on the provided base ThemeData
+    final isDark = base.brightness == Brightness.dark;
+    final baseScheme = isDark ? ColorScheme.dark() : ColorScheme.light();
+    final colorScheme = baseScheme.copyWith(
       primary: brandBlue,
       secondary: const Color(0xFF2E3A59),
-      background: const Color(0xFFF8F9FB),
       surface: Colors.white,
     );
 
-    return base.copyWith(
-      useMaterial3: true,
-      colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.background,
+    final resultBase = ThemeData.from(colorScheme: colorScheme);
+
+    return resultBase.copyWith(
+      scaffoldBackgroundColor: colorScheme.surface,
       appBarTheme: const AppBarTheme(
         centerTitle: false,
         backgroundColor: Colors.white,

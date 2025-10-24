@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'firebase_options.dart';
 import 'package:stayeasy/screens/booking_screen.dart';
@@ -16,23 +17,37 @@ import 'package:stayeasy/screens/splash_screen.dart';
 import 'package:stayeasy/screens/voucher_screen.dart';
 import 'package:stayeasy/screens/admin_dashboard_screen.dart';
 import 'package:stayeasy/screens/partner_dashboard_screen.dart';
+import 'package:stayeasy/screens/personal_info_screen.dart';
 import 'package:stayeasy/screens/room_management_screen.dart';
+import 'package:stayeasy/screens/transaction_history_screen.dart';
+import 'package:stayeasy/screens/favorites_screen.dart';
 import 'package:stayeasy/state/auth_state.dart';
+import 'package:stayeasy/screens/hotel_image_management_screen.dart';
 import 'package:stayeasy/models/booking.dart';
 import 'package:stayeasy/models/hotel.dart';
 import 'package:stayeasy/models/room.dart';
 import 'config/stripe_config.dart';
 import 'config/theme.dart';
+import 'package:stayeasy/screens/partner_bookings_screen.dart';
 
 const kBrandBlue = Color(0xFF1E88E5);
 const kRadius = 16.0;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  stripe.Stripe.publishableKey = StripeConfig.publishableKey;
-  await stripe.Stripe.instance.applySettings();
+  try {
+    stripe.Stripe.publishableKey = StripeConfig.publishableKey;
+    if (!kIsWeb) {
+      await stripe.Stripe.instance.applySettings();
+    }
+  } catch (_) {
+    // Skip Stripe init on web or when not configured to avoid startup crash.
+  }
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await AuthState.I.loadFromStorage();
+  // If you want to restore session from a previously-signed-in Firebase user,
+  // call AuthService().restoreSessionIfNeeded() from a top-level widget (for
+  // example, inside the SplashScreen) after Firebase initialization.
   runApp(const StayEasyApp());
 }
 
@@ -57,7 +72,12 @@ class StayEasyApp extends StatelessWidget {
         '/voucher': (_) => const VoucherScreen(),
         '/admin-dashboard': (_) => const AdminDashboardScreen(),
         '/partner-dashboard': (_) => const PartnerDashboardScreen(),
+        '/partner-bookings': (_) => const PartnerBookingsScreen(),
         '/manage-rooms': (_) => const RoomManagementScreen(),
+        '/profile/personal-info': (_) => const PersonalInfoScreen(),
+        '/profile/transactions': (_) => const TransactionHistoryScreen(),
+        '/profile/favorites': (_) => const FavoritesScreen(),
+        '/manage-hotel-images': (_) => const HotelImageManagementScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

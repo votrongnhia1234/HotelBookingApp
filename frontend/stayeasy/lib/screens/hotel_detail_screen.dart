@@ -226,6 +226,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen> {
                           '/booking',
                           arguments: room,
                         ),
+                        onFavoriteChanged: () {},
                       ),
                     )
                     .toList(),

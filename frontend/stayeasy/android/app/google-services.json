@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1002821305533-d9snlj5lceomsek77f7mepf2kapq2fnj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.stayeasy",
+            "certificate_hash": "70ea965d20c4fcfdce61797961b81ca63f2a0ba7"
+          }
+        },
+        {
           "client_id": "1002821305533-vqh33jr88nerc0di8i8v6fjotp0n3e0g.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "1002821305533-vqh33jr88nerc0di8i8v6fjotp0n3e0g.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1002821305533-8ue7t0cpgd6a2d4g066uuk5t58l1o80o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.stayeasy"
+              }
             }
           ]
         }

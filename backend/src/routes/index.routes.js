@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import auth from "./auth.routes.js";
 import hotels from "./hotels.routes.js";
 import rooms from "./rooms.routes.js";
@@ -7,9 +7,8 @@ import reviews from "./reviews.routes.js";
 import payments from "./payments.routes.js";
 import vouchers from "./vouchers.routes.js";
 import admin from "./admin.routes.js";
-
-// ðŸ”§ THÃŠM DÃ’NG NÃ€Y:
 import citiesRouter from "./cities.routes.js";
+import users from "./users.routes.js";
 
 const router = express.Router();
 
@@ -22,5 +21,6 @@ router.use("/payments", payments);
 router.use("/vouchers", vouchers);
 router.use("/admin", admin);
 router.use("/cities", citiesRouter);
+router.use("/users", users);
 
 export default router;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -6,7 +7,7 @@ class LocationService {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         return const LocationResult(
-          error: 'Vui lòng bật GPS để xem các khách sạn gần bạn.',
+          error: 'Vui lòng bật dịch vụ vị trí/GPS.',
         );
       }
 
@@ -16,22 +17,43 @@ class LocationService {
       }
       if (permission == LocationPermission.denied) {
         return const LocationResult(
-          error: 'Ứng dụng cần quyền truy cập vị trí để gợi ý khách sạn gần bạn.',
+          error: 'Quyền vị trí bị từ chối. Hãy cấp quyền và thử lại.',
           permissionDenied: true,
         );
       }
       if (permission == LocationPermission.deniedForever) {
         return const LocationResult(
           error:
-              'Bạn đã từ chối quyền vị trí vĩnh viễn. Vui lòng mở Cài đặt và cho phép StayEasy truy cập vị trí.',
+              'Quyền vị trí bị từ chối vĩnh viễn. Vui lòng mở Cài đặt và cho phép StayEasy truy cập vị trí.',
           permissionDenied: true,
         );
       }
 
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
-      return LocationResult(position: position);
+      // Ưu tiên vị trí hiện tại với timeout, sau đó fallback về vị trí gần nhất đã biết.
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+        ).timeout(const Duration(seconds: 10));
+        return LocationResult(position: position);
+      } on TimeoutException {
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          return LocationResult(position: lastKnown);
+        }
+        return const LocationResult(
+          error: 'Mất quá nhiều thời gian khi truy vấn vị trí thiết bị.',
+        );
+      }
     } catch (e) {
-      return LocationResult(error: 'Không thể xác định vị trí: $e');
+      final msg = e.toString();
+      // Làm thông báo thân thiện hơn cho lỗi dịch vụ mạng trên web.
+      if (msg.contains('Failed to query location')) {
+        return const LocationResult(
+          error:
+              'Không thể truy vấn vị trí từ dịch vụ mạng của trình duyệt. Hãy cấp quyền vị trí cho trang (biểu tượng khoá → Quyền → Vị trí) và thử lại.',
+        );
+      }
+      return LocationResult(error: 'Không thể xác định vị trí: $msg');
     }
   }
 

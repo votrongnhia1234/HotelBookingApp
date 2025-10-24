@@ -64,6 +64,15 @@ CREATE TABLE room_images (
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
+-- Bảng Hotel Images
+CREATE TABLE hotel_images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hotel_id INT NOT NULL,
+    image_url VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
+);
+
 -- Bảng Bookings
 CREATE TABLE bookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -254,6 +263,21 @@ CREATE TABLE IF NOT EXISTS hotel_managers (
   CONSTRAINT fk_hotel_managers_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_hotel_managers_hotel FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
 );
+
+INSERT INTO hotel_managers (user_id, hotel_id)
+VALUES
+  (
+    (SELECT id FROM users WHERE email = 'manager@example.com' LIMIT 1),
+    (SELECT id FROM hotels WHERE name = 'Khách sạn ABC' LIMIT 1)
+  ),
+  (
+    (SELECT id FROM users WHERE email = 'manager2@example.com' LIMIT 1),
+    (SELECT id FROM hotels WHERE name = 'Khách sạn XYZ' LIMIT 1)
+  ),
+  (
+    (SELECT id FROM users WHERE email = 'partner@test.com' LIMIT 1),
+    (SELECT id FROM hotels WHERE name = 'Resort Sun Beach' LIMIT 1)
+  );
 -- ==========================
 -- Index tối ưu
 -- ==========================

@@ -22,6 +22,7 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
   String? _verificationId;
   int? _resendToken;
   bool _loading = false;
+  bool _googleLoading = false;
   String _phone = '';
   String? _error;
 
@@ -44,10 +45,11 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
     setState(() {
       _error = message;
       _loading = false;
+      _googleLoading = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Lỗi: $message')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Lỗi: $message')));
   }
 
   Future<void> _sendOtp() async {
@@ -68,9 +70,9 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
           _step = LoginStep.otp;
           _loading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã gửi mã OTP tới $phone')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Đã gửi mã OTP tới $phone')));
       },
       onError: _showError,
       onAutoVerified: () {
@@ -92,14 +94,11 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
       _error = null;
     });
     try {
-      await _authService.confirmOtp(
-        verificationId: _verificationId!,
-        otp: otp,
-      );
+      await _authService.confirmOtp(verificationId: _verificationId!, otp: otp);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng nhập thành công')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đăng nhập thành công')));
       Navigator.pop(context, true);
     } catch (e) {
       _showError('$e');
@@ -120,9 +119,9 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
           _resendToken = resendToken;
           _loading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã gửi lại OTP')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã gửi lại OTP')));
       },
       onError: _showError,
       onAutoVerified: () {
@@ -134,6 +133,24 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
     );
   }
 
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      final user = await _authService.loginWithGoogle();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đăng nhập thành công')));
+      // If user email isn't verified (some flows may send verification), inform user
+      Navigator.pop(context, true);
+    } catch (e) {
+      _showError('$e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final headline = _step == LoginStep.phone
@@ -142,7 +159,7 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
 
     final helper = _step == LoginStep.phone
         ? 'Gợi ý: với môi trường thử nghiệm, hãy cấu hình số điện thoại test trong Firebase Authentication. '
-            'Nếu dùng số thật, bạn cần bật thanh toán (Blaze) cho Phone Auth.'
+              'Nếu dùng số thật, bạn cần bật thanh toán (Blaze) cho Phone Auth.'
         : 'Nếu chưa nhận được mã, hãy bấm "Gửi lại mã" sau khoảng 60 giây.';
 
     return Scaffold(
@@ -175,6 +192,24 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
                 loading: _loading,
                 onPressed: _loading ? null : _sendOtp,
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('Hoặc'),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              CustomButton(
+                label: 'Đăng nhập với Google',
+                icon: Icons.g_mobiledata,
+                loading: _googleLoading,
+                onPressed: _googleLoading ? null : _loginWithGoogle,
+              ),
             ] else ...[
               TextFormField(
                 controller: _otpController,
@@ -200,10 +235,7 @@ class _LoginPhoneScreenState extends State<LoginPhoneScreen> {
             ],
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.redAccent),
-              ),
+              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
             ],
           ],
         ),

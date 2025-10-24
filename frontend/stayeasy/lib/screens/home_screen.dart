@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../models/hotel.dart';
@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return hotels.where((hotel) {
       if (_query.isNotEmpty) {
         final q = _query.toLowerCase();
-        final target = '${hotel.name} ${hotel.address} ${hotel.city ?? ''}'
+        final target = '${hotel.name} ${hotel.address} ${hotel.city}'
             .toLowerCase();
         if (!target.contains(q)) return false;
       }
@@ -363,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('Không th? t?i danh sách khách s?n.'),
+                      const Text('Không thể tải danh sách khách sạn.'),
                       const SizedBox(height: 8),
                       Text(
                         snapshot.error.toString(),

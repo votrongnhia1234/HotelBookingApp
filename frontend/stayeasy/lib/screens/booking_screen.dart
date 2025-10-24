@@ -117,14 +117,33 @@ class _BookingScreenState extends State<BookingScreen> {
                 padding: const EdgeInsets.all(14),
                 child: Row(
                   children: [
-                    Container(
-                      height: 56,
-                      width: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.bed, color: Colors.black54),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: (room.thumbnailUrl != null && room.thumbnailUrl!.isNotEmpty)
+                          ? Image.network(
+                              room.thumbnailUrl!,
+                              height: 56,
+                              width: 56,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 56,
+                                width: 56,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.bed, color: Colors.black54),
+                              ),
+                            )
+                          : Container(
+                              height: 56,
+                              width: 56,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.bed, color: Colors.black54),
+                            ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

@@ -139,10 +139,25 @@ export const listBookings = async (req, res, next) => {
          LEFT JOIN rooms r ON r.id = b.room_id
          LEFT JOIN hotels h ON h.id = r.hotel_id`;
 
+    // Restrict partners to bookings of hotels they manage
+    let extraJoin = "";
+    const whereParts = [];
     const params = [];
+
+    if (role === "hotel_manager") {
+      extraJoin = " JOIN hotel_managers hm ON hm.hotel_id = r.hotel_id";
+      whereParts.push("hm.user_id = ?");
+      params.push(authUserId);
+    }
+
     if (targetUserId) {
-      sql += " WHERE b.user_id = ?";
+      whereParts.push("b.user_id = ?");
       params.push(targetUserId);
+    }
+
+    sql += extraJoin;
+    if (whereParts.length) {
+      sql += " WHERE " + whereParts.join(" AND ");
     }
 
     sql += " ORDER BY b.check_in DESC, b.created_at DESC, b.id DESC";
@@ -360,8 +375,8 @@ export const updateBookingStatus = async (req, res, next) => {
 
     const booking = rows[0];
 
-    if (booking.status === "completed") {
-      return res.status(409).json({ message: "Completed booking cannot be changed" });
+    if (booking.status === "completed" && status !== "cancelled") {
+      return res.status(409).json({ message: "Completed booking cannot be changed except cancellation" });
     }
     if (booking.status === "cancelled" && status !== "cancelled") {
       return res.status(409).json({ message: "Cancelled booking cannot be re-activated" });
@@ -391,6 +406,148 @@ export const updateBookingStatus = async (req, res, next) => {
     });
 
     res.json({ message: "Booking status updated", id, status });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const exportBookingSummary = async (req, res, next) => {
+  try {
+    const role = req.user?.role ?? "customer";
+    if (!["admin", "hotel_manager"].includes(role)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const { from, to, format = "xlsx" } = req.query;
+
+    let join = "";
+    let where = "1=1";
+    const params = [];
+
+    if (role === "hotel_manager") {
+      join =
+        " JOIN rooms r ON r.id = b.room_id JOIN hotel_managers hm ON hm.hotel_id = r.hotel_id";
+      where = "hm.user_id = ?";
+      params.push(req.user.id);
+    }
+
+    if (from) {
+      where += " AND DATE(b.check_out) >= ?";
+      params.push(from);
+    }
+    if (to) {
+      where += " AND DATE(b.check_out) < DATE_ADD(?, INTERVAL 1 DAY)";
+      params.push(to);
+    }
+
+    let row = {};
+    try {
+      const [[qrow]] = await pool.query(
+        `SELECT
+            COUNT(*) AS total,
+            SUM(b.status = 'pending') AS pending,
+            SUM(b.status = 'confirmed') AS confirmed,
+            SUM(b.status = 'completed') AS completed,
+            SUM(b.status = 'cancelled') AS cancelled,
+            COALESCE(SUM(CASE WHEN b.status IN ('pending','confirmed','completed') THEN b.total_price END), 0) AS valuePipeline,
+            COALESCE(SUM(CASE WHEN b.status = 'completed' THEN b.total_price END), 0) AS valueCompleted
+          FROM bookings b
+          ${join}
+          WHERE ${where}`,
+        params,
+      );
+      row = qrow ?? {};
+    } catch (sqlErr) {
+      const msg = String(sqlErr?.message ?? sqlErr);
+      if (msg.includes("doesn't exist") || msg.includes('ER_NO_SUCH_TABLE')) {
+        row = {
+          total: 0,
+          pending: 0,
+          confirmed: 0,
+          completed: 0,
+          cancelled: 0,
+          valuePipeline: 0,
+          valueCompleted: 0,
+        };
+      } else {
+        throw sqlErr;
+      }
+    }
+
+    const fmt = String(format || "xlsx").toLowerCase();
+    const fnameSuffix = [from ? String(from) : null, to ? String(to) : null].filter(Boolean).join("_");
+
+    if (fmt === "csv") {
+      const headers = [
+        "From",
+        "To",
+        "Total",
+        "Pending",
+        "Confirmed",
+        "Completed",
+        "Cancelled",
+        "ValuePipeline",
+        "ValueCompleted",
+      ];
+      const values = [
+        from || "",
+        to || "",
+        Number(row.total || 0),
+        Number(row.pending || 0),
+        Number(row.confirmed || 0),
+        Number(row.completed || 0),
+        Number(row.cancelled || 0),
+        Number(row.valuePipeline || 0),
+        Number(row.valueCompleted || 0),
+      ];
+      const csv = `${headers.join(',')}\n${values.join(',')}`;
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="booking_summary${fnameSuffix ? '_' + fnameSuffix : ''}.csv"`
+      );
+      return res.status(200).send(csv);
+    }
+
+    // Default: Excel
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Tổng quan");
+
+    ws.columns = [
+      { header: "Từ ngày", key: "from", width: 12 },
+      { header: "Đến ngày", key: "to", width: 12 },
+      { header: "Tổng đơn", key: "total", width: 10 },
+      { header: "Chờ xác nhận", key: "pending", width: 12 },
+      { header: "Đã xác nhận", key: "confirmed", width: 12 },
+      { header: "Hoàn tất", key: "completed", width: 10 },
+      { header: "Hủy", key: "cancelled", width: 8 },
+      { header: "Giá trị pipeline", key: "valuePipeline", width: 16 },
+      { header: "Giá trị hoàn tất", key: "valueCompleted", width: 16 },
+    ];
+
+    ws.addRow({
+      from: from || "",
+      to: to || "",
+      total: Number(row.total || 0),
+      pending: Number(row.pending || 0),
+      confirmed: Number(row.confirmed || 0),
+      completed: Number(row.completed || 0),
+      cancelled: Number(row.cancelled || 0),
+      valuePipeline: Number(row.valuePipeline || 0),
+      valueCompleted: Number(row.valueCompleted || 0),
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="booking_summary${fnameSuffix ? '_' + fnameSuffix : ''}.xlsx"`,
+    );
+    const buffer = await wb.xlsx.writeBuffer();
+    return res.status(200).send(Buffer.from(buffer));
   } catch (err) {
     next(err);
   }

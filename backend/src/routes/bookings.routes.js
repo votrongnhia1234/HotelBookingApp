@@ -6,6 +6,7 @@ import {
   updateBookingStatus,
   cancelBooking,
   getBookingSummary,
+  exportBookingSummary,
 } from "../controllers/bookings.controller.js";
 import {
   protect,
@@ -23,6 +24,12 @@ router.get(
   protect,
   authorizeAdminOrManager,
   getBookingSummary,
+);
+router.get(
+  "/summary/export",
+  protect,
+  authorizeAdminOrManager,
+  exportBookingSummary,
 );
 router.post("/", protect, authorize("customer", "admin", "hotel_manager"), createBooking);
 router.patch(

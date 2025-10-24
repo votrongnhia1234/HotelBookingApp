@@ -75,19 +75,26 @@ class _Header extends StatelessWidget {
               children: [
                 Text(
                   isGuest ? 'Đăng nhập/ Đăng ký' : user!.name,
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   isGuest
                       ? 'Giữ lịch sử đặt phòng và nhận ưu đãi dành riêng cho bạn.'
                       : user!.phone,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.black54,
+                  ),
                 ),
                 if (!isGuest && user!.role.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE3F2FD),
                       borderRadius: BorderRadius.circular(999),
@@ -114,7 +121,7 @@ class _Header extends StatelessWidget {
                 ],
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -147,8 +154,16 @@ class _GuestSections extends StatelessWidget {
             title: 'Cài đặt',
             items: [
               _SettingsItem(icon: Icons.notifications_none, label: 'Thông báo'),
-              _SettingsItem(icon: Icons.translate, label: 'Ngôn ngữ', value: 'Tiếng Việt'),
-              _SettingsItem(icon: Icons.place_outlined, label: 'Khu vực', value: 'TP.HCM'),
+              _SettingsItem(
+                icon: Icons.translate,
+                label: 'Ngôn ngữ',
+                value: 'Tiếng Việt',
+              ),
+              _SettingsItem(
+                icon: Icons.place_outlined,
+                label: 'Khu vực',
+                value: 'TP.HCM',
+              ),
             ],
           ),
           SizedBox(height: 16),
@@ -156,8 +171,14 @@ class _GuestSections extends StatelessWidget {
             title: 'Thông tin',
             items: [
               _SettingsItem(icon: Icons.help_outline, label: 'Hỏi đáp'),
-              _SettingsItem(icon: Icons.privacy_tip_outlined, label: 'Điều khoản & Chính sách'),
-              _SettingsItem(icon: Icons.phone_in_talk_outlined, label: 'Liên hệ'),
+              _SettingsItem(
+                icon: Icons.privacy_tip_outlined,
+                label: 'Điều khoản & Chính sách',
+              ),
+              _SettingsItem(
+                icon: Icons.phone_in_talk_outlined,
+                label: 'Liên hệ',
+              ),
             ],
           ),
         ],
@@ -178,10 +199,15 @@ class _GuestBenefitCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
-            Text('Lợi ích khi đăng nhập', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(
+              'Lợi ích khi đăng nhập',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            ),
             SizedBox(height: 12),
             _BenefitRow(text: 'Quản lý chuyến đi và giữ lịch sử đặt phòng.'),
-            _BenefitRow(text: 'Nhận ưu đãi độc quyền, voucher dành riêng cho bạn.'),
+            _BenefitRow(
+              text: 'Nhận ưu đãi độc quyền, voucher dành riêng cho bạn.',
+            ),
             _BenefitRow(text: 'Lưu thông tin khách để đặt phòng nhanh hơn.'),
           ],
         ),
@@ -202,16 +228,36 @@ class _MemberSections extends StatelessWidget {
       child: Column(
         children: [
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Column(
-              children: const [
-                _SettingsItem(icon: Icons.person_outline, label: 'Thông tin cá nhân'),
-                Divider(height: 0),
-                _SettingsItem(icon: Icons.payment, label: 'Phương thức thanh toán'),
-                Divider(height: 0),
-                _SettingsItem(icon: Icons.favorite_outline, label: 'Danh sách yêu thích'),
-                Divider(height: 0),
-                _SettingsItem(icon: Icons.receipt_long_outlined, label: 'Lịch sử giao dịch'),
+              children: [
+                _SettingsItem(
+                  icon: Icons.person_outline,
+                  label: 'Thông tin cá nhân',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/profile/personal-info'),
+                ),
+                const Divider(height: 0),
+                const _SettingsItem(
+                  icon: Icons.payment,
+                  label: 'Phương thức thanh toán',
+                ),
+                const Divider(height: 0),
+                _SettingsItem(
+                  icon: Icons.favorite_outline,
+                  label: 'Danh sách yêu thích',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/profile/favorites'),
+                ),
+                const Divider(height: 0),
+                _SettingsItem(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'Lịch sử giao dịch',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/profile/transactions'),
+                ),
               ],
             ),
           ),
@@ -223,18 +269,33 @@ class _MemberSections extends StatelessWidget {
                   _SettingsItem(
                     icon: Icons.admin_panel_settings_outlined,
                     label: 'Dashboard quản trị',
-                    onTap: () => Navigator.pushNamed(context, '/admin-dashboard'),
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/admin-dashboard'),
                   ),
                 if (AuthState.I.isHotelManager)
                   _SettingsItem(
                     icon: Icons.analytics_outlined,
                     label: 'Số liệu đối tác',
-                    onTap: () => Navigator.pushNamed(context, '/partner-dashboard'),
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/partner-dashboard'),
+                  ),
+                if (AuthState.I.isHotelManager)
+                  _SettingsItem(
+                    icon: Icons.receipt_long_outlined,
+                    label: 'Quản lý đơn đặt',
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/partner-bookings'),
                   ),
                 _SettingsItem(
                   icon: Icons.meeting_room_outlined,
                   label: 'Quan ly phong',
                   onTap: () => Navigator.pushNamed(context, '/manage-rooms'),
+                ),
+                _SettingsItem(
+                  icon: Icons.collections_outlined,
+                  label: 'Quản lý ảnh khách sạn',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/manage-hotel-images'),
                 ),
               ],
             ),
@@ -244,8 +305,16 @@ class _MemberSections extends StatelessWidget {
             title: 'Cài đặt',
             items: [
               _SettingsItem(icon: Icons.notifications_none, label: 'Thông báo'),
-              _SettingsItem(icon: Icons.translate, label: 'Ngôn ngữ', value: 'Tiếng Việt'),
-              _SettingsItem(icon: Icons.place_outlined, label: 'Khu vực', value: 'TP.HCM'),
+              _SettingsItem(
+                icon: Icons.translate,
+                label: 'Ngôn ngữ',
+                value: 'Tiếng Việt',
+              ),
+              _SettingsItem(
+                icon: Icons.place_outlined,
+                label: 'Khu vực',
+                value: 'TP.HCM',
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -253,8 +322,14 @@ class _MemberSections extends StatelessWidget {
             title: 'Hỗ trợ',
             items: [
               _SettingsItem(icon: Icons.help_outline, label: 'Hỏi đáp'),
-              _SettingsItem(icon: Icons.privacy_tip_outlined, label: 'Điều khoản & Chính sách'),
-              _SettingsItem(icon: Icons.phone_in_talk_outlined, label: 'Liên hệ'),
+              _SettingsItem(
+                icon: Icons.privacy_tip_outlined,
+                label: 'Điều khoản & Chính sách',
+              ),
+              _SettingsItem(
+                icon: Icons.phone_in_talk_outlined,
+                label: 'Liên hệ',
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -308,10 +383,18 @@ class _SettingsGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black54)),
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.black54,
+          ),
+        ),
         const SizedBox(height: 8),
         Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Column(
             children: [
               for (var i = 0; i < items.length; i++) ...[
@@ -327,7 +410,12 @@ class _SettingsGroup extends StatelessWidget {
 }
 
 class _SettingsItem extends StatelessWidget {
-  const _SettingsItem({required this.icon, required this.label, this.value, this.onTap});
+  const _SettingsItem({
+    required this.icon,
+    required this.label,
+    this.value,
+    this.onTap,
+  });
 
   final IconData icon;
   final String label;

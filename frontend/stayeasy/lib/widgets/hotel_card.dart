@@ -42,7 +42,17 @@ class HotelCard extends StatelessWidget {
                     tag: heroTag ?? 'hotel-image-${hotel.id}',
                     child: hotel.imageUrl.isEmpty
                         ? Container(color: Colors.grey.shade200)
-                        : Image.network(hotel.imageUrl, fit: BoxFit.cover),
+                        : Image.network(
+                            hotel.imageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(color: Colors.grey.shade200);
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(color: Colors.grey.shade200);
+                            },
+                          ),
                   ),
                 ),
                 Positioned.fill(

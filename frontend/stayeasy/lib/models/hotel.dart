@@ -1,3 +1,5 @@
+import '../config/api_constants.dart';
+
 class Hotel {
   final int id;
   final String name;
@@ -8,6 +10,7 @@ class Hotel {
   final String imageUrl;
   final double? latitude;
   final double? longitude;
+  final int managerCount;
 
   Hotel({
     required this.id,
@@ -19,24 +22,25 @@ class Hotel {
     required this.imageUrl,
     this.latitude,
     this.longitude,
-  });
+    int? managerCount,
+  }) : managerCount = managerCount ?? 0;
 
   static int _toInt(dynamic v) {
     if (v is int) return v;
     if (v is num) return v.toInt();
     if (v is String) {
-      final d = double.tryParse(v);
-      if (d != null) return d.toInt();
       final i = int.tryParse(v);
       if (i != null) return i;
+      final d = double.tryParse(v);
+      if (d != null) return d.toInt();
     }
     return 0;
   }
 
   static double _toDouble(dynamic v) {
     if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v) ?? 0.0;
-    return 0.0;
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
   }
 
   static String _toStr(dynamic v) => v?.toString() ?? '';
@@ -55,8 +59,11 @@ class Hotel {
         city: _toStr(j['city'] ?? j['province'] ?? ''),
         rating: _toDouble(j['rating'] ?? j['avg_rating']),
         description: _toStr(j['description'] ?? j['desc']),
-        imageUrl: _toStr(j['imageUrl'] ?? j['image_url'] ?? j['thumbnail']),
+        imageUrl: ApiConstants.resolveFileUrl(
+          _toStr(j['imageUrl'] ?? j['image_url'] ?? j['thumbnail'] ?? ''),
+        ),
         latitude: _toNullableDouble(j['latitude'] ?? j['lat'] ?? j['latitude_deg']),
         longitude: _toNullableDouble(j['longitude'] ?? j['lng'] ?? j['long'] ?? j['longitude_deg']),
+        managerCount: _toInt(j['manager_count'] ?? j['managerCount'] ?? j['managers'] ?? 0),
       );
 }

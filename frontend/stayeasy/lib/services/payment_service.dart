@@ -20,7 +20,7 @@ class PaymentService {
     required int bookingId,
     required double amount,
     required String method, // 'cod' | 'online'
-    String currency = 'usd',
+    String currency = 'vnd',
   }) async {
     final response = await _apiService.post(ApiConstants.payments, {
       'booking_id': bookingId,

@@ -41,4 +41,11 @@ class AuthState extends ChangeNotifier {
     await sp.remove('auth_user');
     notifyListeners();
   }
+
+  Future<void> updateUser(User user) async {
+    currentUser = user;
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString('auth_user', jsonEncode(user.toJson()));
+    notifyListeners();
+  }
 }

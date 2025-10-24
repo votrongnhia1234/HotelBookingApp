@@ -264,14 +264,14 @@ export const exportRevenue = async (req, res, next) => {
       // import động để không bắt buộc cài nếu bạn chỉ dùng CSV
       const ExcelJS = (await import("exceljs")).default;
       const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet("Revenue");
+      const ws = wb.addWorksheet("Doanh thu");
 
       ws.columns = [
-        { header: "Period", key: "period", width: 15 },
-        { header: "Hotel ID", key: "hotel_id", width: 10 },
-        { header: "Hotel Name", key: "hotel_name", width: 30 },
-        { header: "Bookings", key: "bookings", width: 12 },
-        { header: "Revenue", key: "revenue", width: 15 }
+        { header: "Kỳ", key: "period", width: 15 },
+        { header: "Mã KS", key: "hotel_id", width: 10 },
+        { header: "Tên khách sạn", key: "hotel_name", width: 30 },
+        { header: "Số đơn", key: "bookings", width: 12 },
+        { header: "Doanh thu", key: "revenue", width: 15 }
       ];
       rows.forEach(r => ws.addRow({
         period: r.period,
@@ -288,7 +288,7 @@ export const exportRevenue = async (req, res, next) => {
     }
 
     // ====== CSV (mặc định) ======
-    const header = ["period","hotel_id","hotel_name","bookings","revenue"];
+    const header = ["ky","ma_khach_san","ten_khach_san","so_don","doanh_thu"];
     const lines = [header.join(",")];
     for (const r of rows) {
       const row = [
@@ -304,6 +304,210 @@ export const exportRevenue = async (req, res, next) => {
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="revenue_${group}.csv"`);
+    return res.status(200).send(csv);
+  } catch (e) { next(e); }
+};
+
+export const assignHotelManager = async (req, res, next) => {
+  try {
+    const hotelId = Number(req.params.id);
+    const { user_id } = req.body;
+    if (!hotelId || !Number.isFinite(hotelId)) {
+      return res.status(400).json({ message: "Invalid hotel_id" });
+    }
+    if (!user_id || !Number.isFinite(Number(user_id))) {
+      return res.status(400).json({ message: "user_id is required" });
+    }
+
+    const [[hotel]] = await pool.query(`SELECT id FROM hotels WHERE id=? LIMIT 1`, [hotelId]);
+    if (!hotel) return res.status(404).json({ message: "Hotel not found" });
+
+    const [[user]] = await pool.query(
+      `SELECT u.id, r.role_name AS role
+         FROM users u JOIN roles r ON r.id=u.role_id
+        WHERE u.id=? LIMIT 1`,
+      [Number(user_id)]
+    );
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.role !== "hotel_manager") {
+      return res.status(400).json({ message: "User must have role 'hotel_manager'" });
+    }
+
+    const [[existing]] = await pool.query(
+      `SELECT id FROM hotel_managers WHERE hotel_id=? AND user_id=? LIMIT 1`,
+      [hotelId, Number(user_id)]
+    );
+    if (existing) return res.status(409).json({ message: "User already manages this hotel" });
+
+    const [r] = await pool.query(
+      `INSERT INTO hotel_managers (hotel_id, user_id) VALUES (?, ?)`,
+      [hotelId, Number(user_id)]
+    );
+
+    res.status(201).json({
+      id: r.insertId,
+      hotel_id: hotelId,
+      user_id: Number(user_id),
+    });
+  } catch (e) { next(e); }
+};
+
+export const removeHotelManager = async (req, res, next) => {
+  try {
+    const hotelId = Number(req.params.id);
+    const userId = Number(req.params.userId);
+    if (!Number.isFinite(hotelId) || !Number.isFinite(userId)) {
+      return res.status(400).json({ message: "Invalid hotel_id or userId" });
+    }
+    const [r] = await pool.query(
+      `DELETE FROM hotel_managers WHERE hotel_id=? AND user_id=?`,
+      [hotelId, userId]
+    );
+    if (r.affectedRows === 0) return res.status(404).json({ message: "Assignment not found" });
+    res.json({ message: "Manager unassigned from hotel" });
+  } catch (e) { next(e); }
+};
+
+export const exportRevenueSummary = async (req, res, next) => {
+  try {
+    const today = todayISO();
+    const [[{ revenueAll }]] = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN status='completed' THEN amount END),0) revenueAll FROM payments`
+    );
+    const [[{ revenueToday }]] = await pool.query(
+      `SELECT COALESCE(SUM(p.amount),0) revenueToday
+         FROM payments p JOIN bookings b ON b.id=p.booking_id
+        WHERE p.status='completed' AND DATE(b.updated_at)=?`, [today]
+    );
+
+    const format = String(req.query.format || "xlsx").toLowerCase();
+    if (format === "xlsx") {
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Tổng quan");
+      ws.columns = [
+        { header: "Thời điểm", key: "as_of", width: 12 },
+        { header: "Doanh thu (tổng)", key: "revenue_total", width: 18 },
+        { header: "Doanh thu hôm nay", key: "revenue_today", width: 18 },
+      ];
+      ws.addRow({
+        as_of: today,
+        revenue_total: Number(revenueAll) || 0,
+        revenue_today: Number(revenueToday) || 0,
+      });
+
+      res.setHeader("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="revenue_summary_${today}.xlsx"`);
+      const buffer = await wb.xlsx.writeBuffer();
+      return res.status(200).send(Buffer.from(buffer));
+    }
+
+    const header = "thoi_diem,doanh_thu_tong,doanh_thu_hom_nay";
+    const row = `${today},${Number(revenueAll)||0},${Number(revenueToday)||0}`;
+    res.setHeader("Content-Type","text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="revenue_summary_${today}.csv"`);
+    return res.status(200).send(`${header}\n${row}`);
+  } catch (e) { next(e); }
+};
+
+// === NEW: List managers of a hotel ===
+export const listHotelManagersForHotel = async (req, res, next) => {
+  try {
+    const hotelId = Number(req.params.id);
+    if (!Number.isFinite(hotelId) || hotelId <= 0) {
+      return res.status(400).json({ message: "Invalid hotel_id" });
+    }
+    const [[hotel]] = await pool.query(`SELECT id, name FROM hotels WHERE id=? LIMIT 1`, [hotelId]);
+    if (!hotel) return res.status(404).json({ message: "Hotel not found" });
+
+    const [rows] = await pool.query(
+      `SELECT hm.user_id, u.name, u.email, hm.created_at AS assigned_at
+         FROM hotel_managers hm
+         JOIN users u ON u.id = hm.user_id
+        WHERE hm.hotel_id = ?
+        ORDER BY u.name ASC`,
+      [hotelId]
+    );
+    return res.json({ hotel: { id: hotel.id, name: hotel.name }, data: rows });
+  } catch (e) { next(e); }
+};
+
+// === NEW: Export managers mapping (global or per hotel) ===
+export const exportHotelManagers = async (req, res, next) => {
+  try {
+    const hotelIdParam = req.params.id ? Number(req.params.id) : null;
+    const format = String(req.query.format || "xlsx").toLowerCase();
+
+    const params = [];
+    let where = "";
+    if (hotelIdParam && Number.isFinite(hotelIdParam)) {
+      where = "WHERE hm.hotel_id = ?";
+      params.push(hotelIdParam);
+    }
+
+    const [rows] = await pool.query(
+      `SELECT h.id AS hotel_id, h.name AS hotel_name,
+              hm.user_id AS manager_user_id,
+              u.name AS manager_name,
+              u.email AS manager_email,
+              hm.created_at AS assigned_at
+         FROM hotel_managers hm
+         JOIN hotels h ON h.id = hm.hotel_id
+         JOIN users u ON u.id = hm.user_id
+        ${where}
+        ORDER BY h.name ASC, u.name ASC`,
+      params
+    );
+
+    const today = todayISO();
+    const baseName = hotelIdParam ? `hotel_${hotelIdParam}_managers_${today}` : `hotel_managers_${today}`;
+
+    if (format === "xlsx") {
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("HotelManagers");
+      ws.columns = [
+        { header: "Hotel ID", key: "hotel_id", width: 10 },
+        { header: "Hotel Name", key: "hotel_name", width: 30 },
+        { header: "Manager User ID", key: "manager_user_id", width: 16 },
+        { header: "Manager Name", key: "manager_name", width: 20 },
+        { header: "Manager Email", key: "manager_email", width: 25 },
+        { header: "Assigned At", key: "assigned_at", width: 20 },
+      ];
+      rows.forEach(r => ws.addRow({
+        hotel_id: r.hotel_id,
+        hotel_name: r.hotel_name,
+        manager_user_id: r.manager_user_id,
+        manager_name: r.manager_name,
+        manager_email: r.manager_email,
+        assigned_at: r.assigned_at,
+      }));
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.xlsx"`);
+      const buffer = await wb.xlsx.writeBuffer();
+      return res.status(200).send(Buffer.from(buffer));
+    }
+
+    // CSV fallback
+    const header = [
+      "hotel_id","hotel_name","manager_user_id","manager_name","manager_email","assigned_at"
+    ];
+    const lines = [header.join(",")];
+    for (const r of rows) {
+      const esc = (v) => `"${String(v ?? "").replace(/"/g,'""')}"`;
+      lines.push([
+        r.hotel_id,
+        esc(r.hotel_name),
+        r.manager_user_id,
+        esc(r.manager_name),
+        esc(r.manager_email),
+        esc(r.assigned_at)
+      ].join(","));
+    }
+    const csv = lines.join("\n");
+    res.setHeader("Content-Type","text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${baseName}.csv"`);
     return res.status(200).send(csv);
   } catch (e) { next(e); }
 };

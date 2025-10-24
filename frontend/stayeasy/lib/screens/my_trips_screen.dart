@@ -22,6 +22,23 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
   void initState() {
     super.initState();
     _future = _loadBookings();
+    // Reload bookings when auth state changes (e.g. user logged in)
+    AuthState.I.addListener(_onAuthChanged);
+  }
+
+  @override
+  void dispose() {
+    AuthState.I.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
+    // If the widget is mounted, refresh the bookings list so UI reflects
+    // current authentication (e.g., after Google sign-in restores session).
+    if (!mounted) return;
+    setState(() {
+      _future = _loadBookings();
+    });
   }
 
   Future<List<Booking>> _loadBookings() async {

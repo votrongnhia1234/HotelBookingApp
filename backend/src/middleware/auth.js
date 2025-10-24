@@ -2,6 +2,17 @@ import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 import { managerOwnsHotel } from "../controllers/_ownership.util.js";
 
+const fetchUserWithRole = async (id) => {
+  const [rows] = await pool.query(
+    `SELECT u.id, u.name, u.email, r.role_name AS role
+       FROM users u
+       JOIN roles r ON r.id = u.role_id
+      WHERE u.id = ? LIMIT 1`,
+    [id],
+  );
+  return rows[0] ?? null;
+};
+
 /** Bắt buộc có token */
 export const protect = async (req, res, next) => {
   try {
@@ -10,22 +21,32 @@ export const protect = async (req, res, next) => {
     if (!token) return res.status(401).json({ message: "Unauthorized" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Lấy user từ DB (kèm role)
-    const [rows] = await pool.query(
-      `SELECT u.id, u.name, u.email, r.role_name AS role
-       FROM users u
-       JOIN roles r ON r.id = u.role_id
-       WHERE u.id = ? LIMIT 1`,
-      [decoded.id],
-    );
+    const user = await fetchUserWithRole(decoded.id);
 
-    if (!rows[0]) return res.status(401).json({ message: "User not found" });
+    if (!user) return res.status(401).json({ message: "User not found" });
 
-    req.user = rows[0];
+    req.user = user;
     next();
   } catch (e) {
     return res.status(401).json({ message: "Invalid token" });
   }
+};
+
+export const attachUserIfPresent = async (req, res, next) => {
+  if (req.user) return next();
+  try {
+    const header = req.headers.authorization || "";
+    const token = header.startsWith("Bearer ") ? header.split(" ")[1] : null;
+    if (!token) return next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await fetchUserWithRole(decoded.id);
+    if (user) {
+      req.user = user;
+    }
+  } catch (e) {
+    // ignore invalid optional tokens
+  }
+  next();
 };
 
 /** Chỉ cho phép 1 trong các role */
