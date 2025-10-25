@@ -147,27 +147,31 @@ class _GuestSections extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: const [
-          _GuestBenefitCard(),
-          SizedBox(height: 16),
+        children: [
+          const _GuestBenefitCard(),
+          const SizedBox(height: 16),
           _SettingsGroup(
             title: 'Cài đặt',
             items: [
-              _SettingsItem(icon: Icons.notifications_none, label: 'Thông báo'),
               _SettingsItem(
+                icon: Icons.notifications_none,
+                label: 'Thông báo',
+                onTap: () => Navigator.pushNamed(context, '/profile/notifications'),
+              ),
+              const _SettingsItem(
                 icon: Icons.translate,
                 label: 'Ngôn ngữ',
                 value: 'Tiếng Việt',
               ),
-              _SettingsItem(
+              const _SettingsItem(
                 icon: Icons.place_outlined,
                 label: 'Khu vực',
                 value: 'TP.HCM',
               ),
             ],
           ),
-          SizedBox(height: 16),
-          _SettingsGroup(
+          const SizedBox(height: 16),
+          const _SettingsGroup(
             title: 'Thông tin',
             items: [
               _SettingsItem(icon: Icons.help_outline, label: 'Hỏi đáp'),
@@ -240,9 +244,10 @@ class _MemberSections extends StatelessWidget {
                       Navigator.pushNamed(context, '/profile/personal-info'),
                 ),
                 const Divider(height: 0),
-                const _SettingsItem(
+                _SettingsItem(
                   icon: Icons.payment,
                   label: 'Phương thức thanh toán',
+                  onTap: () => Navigator.pushNamed(context, '/profile/payment-methods'),
                 ),
                 const Divider(height: 0),
                 _SettingsItem(
@@ -288,7 +293,7 @@ class _MemberSections extends StatelessWidget {
                   ),
                 _SettingsItem(
                   icon: Icons.meeting_room_outlined,
-                  label: 'Quan lý phòng',
+                  label: 'Quản lý phòng',
                   onTap: () => Navigator.pushNamed(context, '/manage-rooms'),
                 ),
                 _SettingsItem(
@@ -301,22 +306,28 @@ class _MemberSections extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          const _SettingsGroup(
+          // Removed duplicate settings group to avoid showing two 'Cài đặt' sections
+          const SizedBox(height: 16),
+          _SettingsGroup(
             title: 'Cài đặt',
             items: [
-              _SettingsItem(icon: Icons.notifications_none, label: 'Thông báo'),
-              _SettingsItem(
-                icon: Icons.translate,
-                label: 'Ngôn ngữ',
-                value: 'Tiếng Việt',
-              ),
-              _SettingsItem(
-                icon: Icons.place_outlined,
-                label: 'Khu vực',
-                value: 'TP.HCM',
-              ),
+            _SettingsItem(
+            icon: Icons.notifications_none,
+            label: 'Thông báo',
+            onTap: () => Navigator.pushNamed(context, '/profile/notifications'),
+            ),
+            const _SettingsItem(
+            icon: Icons.translate,
+            label: 'Ngôn ngữ',
+            value: 'Tiếng Việt',
+            ),
+            const _SettingsItem(
+            icon: Icons.place_outlined,
+            label: 'Khu vực',
+            value: 'TP.HCM',
+            ),
             ],
-          ),
+            ),
           const SizedBox(height: 16),
           const _SettingsGroup(
             title: 'Hỗ trợ',

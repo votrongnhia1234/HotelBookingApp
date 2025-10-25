@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/favorites_service.dart';
 import '../services/api_service.dart';
+import '../config/api_constants.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -42,6 +43,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Danh sách yêu thích')),
       body: RefreshIndicator(
@@ -98,20 +100,21 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     }
                     return v?.toString() ?? '';
                   }();
+                  final resolvedImgUrl = ApiConstants.resolveFileUrl(imgUrl);
 
                   Widget leading;
-                  if (imgUrl.isNotEmpty) {
+                  if (resolvedImgUrl.isNotEmpty) {
                     leading = ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       child: Image.network(
-                        imgUrl,
+                        resolvedImgUrl,
                         width: 76,
                         height: 76,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const SizedBox(
                           width: 76,
                           height: 76,
-                          child: Icon(Icons.room),
+                          child: Icon(Icons.meeting_room_outlined),
                         ),
                       ),
                     );
@@ -119,38 +122,81 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     leading = const SizedBox(
                       width: 76,
                       height: 76,
-                      child: Icon(Icons.room),
+                      child: Icon(Icons.meeting_room_outlined),
                     );
                   }
 
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
                     ),
-                    leading: leading,
-                    title: Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    subtitle: Text(hotel),
-                    trailing: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          price != null ? price.toString() : '',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () async {
-                            await FavoritesService.I.toggle(id);
-                            await _loadFavorites();
-                          },
-                        ),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          leading,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  hotel,
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                                if (price != null) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    price.toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            width: 112,
+                            height: 76,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 32),
+                                  ),
+                                  onPressed: () async {
+                                    await FavoritesService.I.toggle(id);
+                                    await _loadFavorites();
+                                  },
+                                  icon: Icon(
+                                    Icons.favorite_border,
+                                    color: cs.error,
+                                  ),
+                                  label: Text(
+                                    'Bỏ yêu thích',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    onTap: () {},
                   );
                 },
               ),

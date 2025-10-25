@@ -42,7 +42,7 @@ export const getBookingSummary = async (req, res, next) => {
   try {
     const role = req.user?.role ?? "customer";
     if (!["admin", "hotel_manager"].includes(role)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res.status(403).json({ message: "Forbidden", code: "FORBIDDEN" });
     }
 
     let join = "";
@@ -134,7 +134,8 @@ export const listBookings = async (req, res, next) => {
               r.room_number,
               r.type AS room_type,
               r.price_per_night,
-              h.name AS hotel_name
+              h.name AS hotel_name,
+              (SELECT ri.image_url FROM room_images ri WHERE ri.room_id = r.id ORDER BY ri.id ASC LIMIT 1) AS image_url
          FROM bookings b
          LEFT JOIN rooms r ON r.id = b.room_id
          LEFT JOIN hotels h ON h.id = r.hotel_id`;
@@ -171,11 +172,18 @@ export const listBookings = async (req, res, next) => {
 
 export const createBooking = async (req, res, next) => {
   const conn = await pool.getConnection();
+  let lockName = null;
   try {
     const userId = req.user.id;
     const { room_id, check_in, check_out } = req.body;
     if (!room_id || !check_in || !check_out) {
-      return res.status(400).json({ message: "room_id, check_in, check_out required" });
+      return res.status(400).json({ message: "room_id, check_in, check_out required", code: "VALIDATION_ERROR" });
+    }
+
+    lockName = `booking_room_${room_id}`;
+    const [[lock]] = await conn.query("SELECT GET_LOCK(?, 5) AS got", [lockName]);
+    if (lock.got !== 1) {
+      return res.status(503).json({ message: "Phòng đang được đặt, vui lòng thử lại sau", code: "RESOURCE_LOCKED" });
     }
 
     const [roomRows] = await conn.query(
@@ -192,12 +200,21 @@ export const createBooking = async (req, res, next) => {
       [room_id],
     );
     if (!roomRows.length) {
-      return res.status(404).json({ message: "Không tìm thấy phòng" });
+      return res.status(404).json({ message: "Không tìm thấy phòng", code: "NOT_FOUND" });
     }
 
-    const available = await isRoomAvailable(room_id, check_in, check_out);
-    if (!available) {
-      return res.status(409).json({ message: "Phòng không có sẵn trong khoảng thời gian {" + check_in + " - " + check_out + "}" });
+    // Re-check availability under lock to avoid overbooking
+    const [overlapRows] = await conn.query(
+      `SELECT 1
+         FROM bookings b
+        WHERE b.room_id = ?
+          AND b.status IN ('pending','confirmed','completed')
+          AND (? < b.check_out AND ? > b.check_in)
+        LIMIT 1`,
+      [room_id, check_in, check_out],
+    );
+    if (overlapRows.length) {
+      return res.status(409).json({ message: "Phòng không có sẵn trong khoảng thời gian {" + check_in + " - " + check_out + "}", code: "CONFLICT" });
     }
 
     const [nightsRows] = await conn.query(
@@ -235,105 +252,187 @@ export const createBooking = async (req, res, next) => {
       },
     });
   } catch (err) {
-    await conn.rollback();
+    try {
+      if (lockName) {
+        await pool.query("SELECT RELEASE_LOCK(?)", [lockName]);
+      }
+    } catch (_) {}
+    try {
+      await pool.query("ROLLBACK");
+    } catch (_) {}
     next(err);
   } finally {
-    conn.release();
+    try {
+      if (lockName) {
+        await pool.query("SELECT RELEASE_LOCK(?)", [lockName]);
+      }
+    } catch (_) {}
+    try {
+      await pool.query("COMMIT");
+    } catch (_) {}
+    await conn.release();
   }
 };
 
-export const cancelBooking = async (req, res, next) => {
+export const getBookingById = async (req, res, next) => {
   try {
-    const id = Number(req.params.id);
-    const role = req.user?.role ?? "customer";
-    const userId = req.user?.id;
-
-    if (!Number.isInteger(id)) {
-      return res.status(400).json({ message: "booking id phải là số nguyên" });
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ message: "Invalid booking id", code: "VALIDATION_ERROR" });
     }
 
-    const [rows] = await pool.query(
-      `SELECT id, user_id, status
-         FROM bookings
-        WHERE id = ?
+    const [[row]] = await pool.query(
+      `SELECT b.id,
+              b.user_id,
+              b.room_id,
+              b.check_in,
+              b.check_out,
+              b.total_price,
+              b.status,
+              b.created_at,
+              r.room_number,
+              r.type AS room_type,
+              r.price_per_night,
+              h.name AS hotel_name
+         FROM bookings b
+         LEFT JOIN rooms r ON r.id = b.room_id
+         LEFT JOIN hotels h ON h.id = r.hotel_id
+        WHERE b.id = ?
         LIMIT 1`,
-      [id],
+      [bookingId],
     );
-    if (!rows.length) {
-      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
+
+    if (!row) {
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng", code: "NOT_FOUND" });
     }
 
-    const booking = rows[0];
-
-    if (role === "customer" && booking.user_id !== userId) {
-      return res.status(403).json({ message: "Bạn không được phép hủy đặt phòng này" });
-    }
-
-    if (!["pending", "confirmed"].includes(String(booking.status ?? "").toLowerCase())) {
-      return res.status(409).json({ message: "Không thể hủy đặt phòng ở giai đoạn này" });
-    }
-
-    const [result] = await pool.query(
-      "UPDATE bookings SET status = 'cancelled' WHERE id = ?",
-      [id],
-    );
-    if (result.affectedRows === 0) {
-      return res.status(500).json({ message: "Hủy đặt phòng thất bại" });
-    }
-
-    await recordAudit({
-      userId: req.user?.id,
-      action: "booking.cancel",
-      targetType: "booking",
-      targetId: id,
-      metadata: { previousStatus: booking.status },
-    });
-
-    res.json({ message: "Hủy đặt phòng thành công", id });
+    res.json({ data: row });
   } catch (err) {
     next(err);
   }
 };
 
 export const completeBooking = async (req, res, next) => {
+  const conn = await pool.getConnection();
   try {
-    const id = Number(req.params.id);
-
-    if (req.user?.role === "hotel_manager") {
-      const hotelId = await hotelIdByBookingId(id);
-      if (!hotelId) {
-        return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
-      }
-      const ownsHotel = await managerOwnsHotel(req.user.id, hotelId);
-      if (!ownsHotel) {
-        return res.status(403).json({ message: "Bạn không có quyền quản lý khách sạn này" });
-      }
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ message: "Invalid booking id", code: "VALIDATION_ERROR" });
     }
 
-    const [details] = await pool.query(
-      "SELECT status FROM bookings WHERE id = ? LIMIT 1",
-      [id],
+    const [[bookingRow]] = await conn.query(
+      `SELECT b.id, b.user_id, b.room_id, b.check_in, b.check_out, b.total_price, b.status,
+              r.room_number, r.type AS room_type, r.price_per_night,
+              h.name AS hotel_name
+         FROM bookings b
+         JOIN rooms r ON r.id = b.room_id
+         JOIN hotels h ON h.id = r.hotel_id
+        WHERE b.id = ?
+        LIMIT 1`,
+      [bookingId],
     );
-    if (!details.length) {
-      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
-    }
-    const previousStatus = details[0].status;
 
-    const [result] = await pool.query(
-      "UPDATE bookings SET status = 'completed' WHERE id = ? AND status IN ('pending','confirmed')",
-      [id],
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Đặt phòng không thể cập nhật hoặc không tồn tại" });
+    if (!bookingRow) {
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng", code: "NOT_FOUND" });
     }
-    await recordAudit({
-      userId: req.user?.id,
-      action: "booking.complete",
-      targetType: "booking",
-      targetId: id,
-      metadata: { previousStatus },
-    });
-    res.json({ message: "Đã đánh dấu đặt phòng hoàn tất" });
+
+    if (bookingRow.status === "completed") {
+      return res.status(200).json({ data: bookingRow });
+    }
+
+    const lockedHotelId = await hotelIdByBookingId(conn, bookingId);
+    const lockName = `hotel_${lockedHotelId}`;
+    const [[lock]] = await conn.query("SELECT GET_LOCK(?, 5) AS got", [lockName]);
+    if (lock.got !== 1) {
+      return res.status(503).json({ message: "Tài nguyên đang bị khóa, vui lòng thử lại sau", code: "RESOURCE_LOCKED" });
+    }
+
+    await conn.beginTransaction();
+
+    // Mark booking as completed
+    await conn.query(
+      `UPDATE bookings
+          SET status = 'completed'
+        WHERE id = ?`,
+      [bookingId],
+    );
+
+    try {
+      await recordAudit(conn, {
+        action: "booking.completed",
+        user_id: req.user.id,
+        hotel_id: lockedHotelId,
+        metadata: JSON.stringify({ booking_id: bookingId }),
+      });
+    } catch (_) {}
+
+    await conn.commit();
+
+    const [[updatedRow]] = await conn.query(
+      `SELECT b.id, b.user_id, b.room_id, b.check_in, b.check_out, b.total_price, b.status,
+              r.room_number, r.type AS room_type, r.price_per_night,
+              h.name AS hotel_name
+         FROM bookings b
+         JOIN rooms r ON r.id = b.room_id
+         JOIN hotels h ON h.id = r.hotel_id
+        WHERE b.id = ?
+        LIMIT 1`,
+      [bookingId],
+    );
+
+    res.json({ data: updatedRow });
+  } catch (err) {
+    try {
+      await pool.query("ROLLBACK");
+    } catch (_) {}
+    next(err);
+  } finally {
+    try {
+      await pool.query("COMMIT");
+    } catch (_) {}
+    await pool.releaseConnection(conn);
+  }
+};
+
+export const cancelBooking = async (req, res, next) => {
+  try {
+    const role = req.user?.role ?? "customer";
+
+    const bookingId = Number(req.params.id);
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ message: "Invalid booking id", code: "VALIDATION_ERROR" });
+    }
+
+    if (role === "hotel_manager") {
+      const owns = await managerOwnsHotel(req.user.id, await hotelIdByBookingId(null, bookingId));
+      if (!owns) {
+        return res.status(403).json({ message: "Forbidden", code: "FORBIDDEN" });
+      }
+    }
+
+    const [[row]] = await pool.query(
+      `SELECT id, status FROM bookings WHERE id = ? LIMIT 1`,
+      [bookingId],
+    );
+    if (!row) {
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng", code: "NOT_FOUND" });
+    }
+
+    if (row.status === "cancelled") {
+      return res.status(200).json({ data: row });
+    }
+
+    await pool.query(
+      `UPDATE bookings SET status = 'cancelled' WHERE id = ?`,
+      [bookingId],
+    );
+
+    const [[updatedRow]] = await pool.query(
+      `SELECT id, status FROM bookings WHERE id = ? LIMIT 1`,
+      [bookingId],
+    );
+
+    res.json({ data: updatedRow });
   } catch (err) {
     next(err);
   }
@@ -345,20 +444,20 @@ export const updateBookingStatus = async (req, res, next) => {
     const { status } = req.body;
 
     if (!Number.isInteger(id)) {
-      return res.status(400).json({ message: "booking id phải là số nguyên" });
+      return res.status(400).json({ message: "booking id phải là số nguyên", code: "VALIDATION_ERROR" });
     }
     if (!ACTIVE_STATUSES.has(status) && status !== "cancelled") {
-      return res.status(400).json({ message: "Trạng thái phải là pending, confirmed hoặc cancelled" });
+      return res.status(400).json({ message: "Trạng thái phải là pending, confirmed hoặc cancelled", code: "VALIDATION_ERROR" });
     }
 
     if (req.user?.role === "hotel_manager") {
       const hotelId = await hotelIdByBookingId(id);
       if (!hotelId) {
-        return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
+        return res.status(404).json({ message: "Không tìm thấy đặt phòng", code: "NOT_FOUND" });
       }
       const ownsHotel = await managerOwnsHotel(req.user.id, hotelId);
       if (!ownsHotel) {
-        return res.status(403).json({ message: "Bạn không có quyền quản lý khách sạn này" });
+        return res.status(403).json({ message: "Bạn không có quyền quản lý khách sạn này", code: "FORBIDDEN" });
       }
     }
 
@@ -370,22 +469,22 @@ export const updateBookingStatus = async (req, res, next) => {
       [id],
     );
     if (!rows.length) {
-      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng", code: "NOT_FOUND" });
     }
 
     const booking = rows[0];
 
     if (booking.status === "completed" && status !== "cancelled") {
-      return res.status(409).json({ message: "Đặt phòng đã hoàn tất không thể thay đổi trừ khi hủy" });
+      return res.status(409).json({ message: "Đặt phòng đã hoàn tất không thể thay đổi trừ khi hủy", code: "CONFLICT" });
     }
     if (booking.status === "cancelled" && status !== "cancelled") {
-      return res.status(409).json({ message: "Đơn đặt phòng đã hủy không thể kích hoạt lại" });
+      return res.status(409).json({ message: "Đơn đặt phòng đã hủy không thể kích hoạt lại", code: "CONFLICT" });
     }
 
     if (status === "confirmed") {
       const overlap = await hasOverlap(booking.room_id, booking.check_in, booking.check_out, booking.id);
       if (overlap) {
-        return res.status(409).json({ message: "Cannot confirm: Không có phòng trống trong khoảng thời gian {" + booking.check_in + " - " + booking.check_out + "}" });
+        return res.status(409).json({ message: "Cannot confirm: Không có phòng trống trong khoảng thời gian {" + booking.check_in + " - " + booking.check_out + "}", code: "CONFLICT" });
       }
     }
 
@@ -394,7 +493,7 @@ export const updateBookingStatus = async (req, res, next) => {
       [status, id],
     );
     if (updateResult.affectedRows === 0) {
-      return res.status(500).json({ message: "Cập nhật trạng thái đặt phòng thất bại" });
+      return res.status(500).json({ message: "Cập nhật trạng thái đặt phòng thất bại", code: "OPERATION_FAILED" });
     }
 
     await recordAudit({
@@ -415,7 +514,7 @@ export const exportBookingSummary = async (req, res, next) => {
   try {
     const role = req.user?.role ?? "customer";
     if (!["admin", "hotel_manager"].includes(role)) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res.status(403).json({ message: "Forbidden", code: "FORBIDDEN" });
     }
 
     const { from, to, format = "xlsx" } = req.query;

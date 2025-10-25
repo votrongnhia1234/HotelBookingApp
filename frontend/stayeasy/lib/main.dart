@@ -28,6 +28,8 @@ import 'package:stayeasy/models/room.dart';
 import 'config/stripe_config.dart';
 import 'config/theme.dart';
 import 'package:stayeasy/screens/partner_bookings_screen.dart';
+import 'package:stayeasy/screens/payment_methods_screen.dart';
+import 'package:stayeasy/screens/notifications_screen.dart';
 
 const kBrandBlue = Color(0xFF1E88E5);
 const kRadius = 16.0;
@@ -66,6 +68,8 @@ class StayEasyApp extends StatelessWidget {
         '/login': (_) => const LoginPhoneScreen(),
         '/trips': (_) => const MyTripsScreen(),
         '/profile': (_) => const ProfileScreen(),
+        '/profile/payment-methods': (_) => const PaymentMethodsScreen(),
+        '/profile/notifications': (_) => const NotificationsSettingsScreen(),
         '/voucher': (_) => const VoucherScreen(),
         '/admin-dashboard': (_) => const AdminDashboardScreen(),
         '/partner-dashboard': (_) => const PartnerDashboardScreen(),

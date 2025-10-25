@@ -3,6 +3,7 @@ import path from "path";
 import sharp from "sharp";
 import pool from "../config/db.js";
 import { managerOwnsHotel } from "./_ownership.util.js";
+import { recordAudit } from "../utils/audit.js";
 
 export const listHotels = async (req, res, next) => {
   try {
@@ -141,33 +142,20 @@ function removeStoredHotelImage(imageUrl) {
 export const addHotelImage = async (req, res, next) => {
   try {
     const { hotel_id, image_url } = req.body;
-    if (!hotel_id || !image_url) {
-      return res.status(400).json({ message: "hotel_id and image_url required" });
-    }
+    if (!hotel_id || !image_url) return res.status(400).json({ message: "hotel_id and image_url required" });
 
-    if (req.user?.role === "hotel_manager") {
-      const ok = await managerOwnsHotel(req.user.id, Number(hotel_id));
-      if (!ok) {
-        return res.status(403).json({ message: "You are not allowed to manage this hotel" });
-      }
-    }
-
-    await pool.query(
-      `INSERT INTO hotel_images (hotel_id, image_url) VALUES (?, ?)`,
-      [hotel_id, image_url],
-    );
+    await pool.query(`INSERT INTO hotel_images (hotel_id, image_url) VALUES (?, ?)`, [hotel_id, image_url]);
+    await recordAudit({ userId: req.user?.id ?? null, action: "hotel_image_add", targetType: "hotel", targetId: Number(hotel_id), metadata: { image_url } });
     res.status(201).json({ message: "Image added" });
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 };
 
 export const uploadHotelImage = async (req, res, next) => {
   try {
     const file = req.file;
     const hotelId = req.body.hotel_id;
-    if (!file) return res.status(400).json({ message: "file is required" });
-    if (!hotelId) return res.status(400).json({ message: "hotel_id is required" });
+    if (!file) return res.status(400).json({ message: 'file is required' });
+    if (!hotelId) return res.status(400).json({ message: 'hotel_id is required' });
 
     if (req.user?.role === "hotel_manager") {
       const ok = await managerOwnsHotel(req.user.id, Number(hotelId));
@@ -186,28 +174,23 @@ export const uploadHotelImage = async (req, res, next) => {
     const originalUrl = `/uploads/hotels/originals/${originalFilename}`;
     const thumbUrl = `/uploads/hotels/thumbs/${thumbFilename}`;
 
-    const [insert] = await pool.query(
+    const [result] = await pool.query(
       `INSERT INTO hotel_images (hotel_id, image_url) VALUES (?, ?)`,
       [hotelId, thumbUrl],
     );
 
-    res.status(201).json({
-      message: "Image uploaded",
-      id: insert.insertId,
-      image_url: thumbUrl,
-      original_url: originalUrl,
-    });
-  } catch (e) {
-    next(e);
-  }
+    await recordAudit({ userId: req.user?.id ?? null, action: "hotel_image_upload", targetType: "hotel", targetId: Number(hotelId), metadata: { id: result.insertId, image_url: thumbUrl, original_url: originalUrl } });
+
+    res.status(201).json({ message: 'Image uploaded', image_url: thumbUrl, original_url: originalUrl, id: result.insertId });
+  } catch (e) { next(e); }
 };
 
 export const uploadHotelImagesBulk = async (req, res, next) => {
   try {
     const files = req.files || [];
     const hotelId = req.body.hotel_id;
-    if (!hotelId) return res.status(400).json({ message: "hotel_id is required" });
-    if (!files.length) return res.status(400).json({ message: "files are required" });
+    if (!hotelId) return res.status(400).json({ message: 'hotel_id is required' });
+    if (!files.length) return res.status(400).json({ message: 'files are required' });
 
     if (req.user?.role === "hotel_manager") {
       const ok = await managerOwnsHotel(req.user.id, Number(hotelId));
@@ -223,7 +206,7 @@ export const uploadHotelImagesBulk = async (req, res, next) => {
       const thumbFilename = `thumb-${originalFilename}`;
       const thumbPath = path.join(HOTEL_THUMBS_DIR, thumbFilename);
 
-      await sharp(originalPath).resize(300, 200, { fit: "cover" }).toFile(thumbPath);
+      await sharp(originalPath).resize(300, 200, { fit: 'cover' }).toFile(thumbPath);
 
       const originalUrl = `/uploads/hotels/originals/${originalFilename}`;
       const thumbUrl = `/uploads/hotels/thumbs/${thumbFilename}`;
@@ -234,12 +217,11 @@ export const uploadHotelImagesBulk = async (req, res, next) => {
       );
 
       results.push({ id: insert.insertId, image_url: thumbUrl, original_url: originalUrl });
+      await recordAudit({ userId: req.user?.id ?? null, action: "hotel_image_upload_bulk_item", targetType: "hotel", targetId: Number(hotelId), metadata: { id: insert.insertId, image_url: thumbUrl, original_url: originalUrl } });
     }
 
-    res.status(201).json({ message: "Images uploaded", images: results });
-  } catch (e) {
-    next(e);
-  }
+    res.status(201).json({ message: 'Images uploaded', images: results });
+  } catch (e) { next(e); }
 };
 
 export const getHotelImages = async (req, res, next) => {
@@ -276,6 +258,7 @@ export const replaceHotelImage = async (req, res, next) => {
     if (!Number.isInteger(imageId) || imageId <= 0) {
       return res.status(400).json({ message: "image id must be a positive integer" });
     }
+
     const file = req.file;
     if (!file) return res.status(400).json({ message: "file is required" });
 
@@ -351,7 +334,10 @@ export const deleteHotelImage = async (req, res, next) => {
     }
 
     await pool.query("DELETE FROM hotel_images WHERE id = ?", [imageId]);
+
     removeStoredHotelImage(existing.image_url);
+
+    await recordAudit({ userId: req.user?.id ?? null, action: "hotel_image_delete", targetType: "hotel_image", targetId: imageId });
 
     res.json({ message: "Image removed" });
   } catch (err) {

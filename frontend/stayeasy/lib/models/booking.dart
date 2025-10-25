@@ -1,3 +1,5 @@
+import 'package:stayeasy/config/api_constants.dart';
+
 class Booking {
   final int id;
   final int roomId;
@@ -10,6 +12,7 @@ class Booking {
   final String roomType;
   final String hotelName;
   final double pricePerNight;
+  final String imageUrl;
 
   Booking({
     required this.id,
@@ -23,6 +26,7 @@ class Booking {
     this.roomType = '',
     this.hotelName = '',
     this.pricePerNight = 0,
+    this.imageUrl = '',
   });
 
   static int _toInt(dynamic v) {
@@ -60,6 +64,9 @@ class Booking {
         roomType: _toStr(json['room_type'] ?? json['roomType']),
         hotelName: _toStr(json['hotel_name'] ?? json['hotelName']),
         pricePerNight: _toDouble(json['price_per_night'] ?? json['pricePerNight']),
+        imageUrl: ApiConstants.resolveFileUrl(
+          _toStr(json['imageUrl'] ?? json['image_url'] ?? ''),
+        ),
       );
 
   double get totalPrice => totalAmount;
@@ -76,6 +83,7 @@ class Booking {
     String? roomType,
     String? hotelName,
     double? pricePerNight,
+    String? imageUrl,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -89,6 +97,7 @@ class Booking {
       roomType: roomType ?? this.roomType,
       hotelName: hotelName ?? this.hotelName,
       pricePerNight: pricePerNight ?? this.pricePerNight,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 }

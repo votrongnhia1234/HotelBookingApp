@@ -11,7 +11,7 @@ export const getCurrentProfile = async (req, res, next) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found", code: "NOT_FOUND" });
     }
 
     res.json({ data: rows[0] });
@@ -42,21 +42,21 @@ export const updateCurrentProfile = async (req, res, next) => {
       const normalized = email.trim();
       const fallbackSuffix = "@firebase-user.stayeasy";
       if (normalized.endsWith(fallbackSuffix)) {
-        return res.status(400).json({ message: "Email không hợp lệ" });
+        return res.status(400).json({ message: "Email không hợp lệ", code: "INVALID_EMAIL" });
       }
       const [[dupe]] = await pool.query(
         "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
         [normalized, req.user.id]
       );
       if (dupe) {
-        return res.status(409).json({ message: "Email đã được sử dụng" });
+        return res.status(409).json({ message: "Email đã được sử dụng", code: "EMAIL_IN_USE" });
       }
       fields.push("email = ?");
       values.push(normalized);
     }
 
     if (fields.length === 0) {
-      return res.status(400).json({ message: "No fields to update" });
+      return res.status(400).json({ message: "No fields to update", code: "NO_FIELDS_TO_UPDATE" });
     }
 
     values.push(req.user.id);
@@ -80,7 +80,8 @@ export const updateCurrentProfile = async (req, res, next) => {
   } catch (err) {
     if (err?.code === "ER_DUP_ENTRY") {
       const msg = String(err.message || "").includes("phone") ? "Phone number already in use" : "Duplicate value";
-      return res.status(409).json({ message: msg });
+      const code = String(err.message || "").includes("phone") ? "PHONE_IN_USE" : "DUPLICATE_VALUE";
+      return res.status(409).json({ message: msg, code });
     }
     next(err);
   }
@@ -99,7 +100,8 @@ export const getCurrentTransactions = async (req, res, next) => {
               r.room_number,
               r.type AS room_type,
               h.id AS hotel_id,
-              h.name AS hotel_name
+              h.name AS hotel_name,
+              (SELECT ri.image_url FROM room_images ri WHERE ri.room_id = r.id ORDER BY ri.id ASC LIMIT 1) AS image_url
          FROM bookings b
          JOIN rooms r ON r.id = b.room_id
          JOIN hotels h ON h.id = r.hotel_id

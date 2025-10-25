@@ -20,6 +20,35 @@ Minimal required variables:
 - SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
 - OpenTripMap: `OPENTRIPMAP_KEY`
+- CORS: `CORS_ORIGINS` (comma-separated list of allowed origins, e.g. `http://localhost:3000,http://127.0.0.1:3000`)
+- Booking TTL: `BOOKING_PENDING_TTL_MINUTES` (minutes to auto-cancel pending bookings, default `15`)
+
+### Security & Rate Limits
+
+- Security headers are enabled via `helmet`.
+- Rate limits are applied on `/api/auth` and `/api/payments`.
+- Static uploads under `backend/uploads` are served with cache headers.
+
+### Request Validation
+
+- Zod-based validation is applied to critical endpoints:
+  - `POST /api/bookings` requires `room_id` (number), `check_in` and `check_out` (YYYY-MM-DD, `check_out` after `check_in`).
+  - `PATCH /api/bookings/:id/status` requires `status` in `pending|confirmed|cancelled`.
+  - `POST /api/payments` requires `booking_id` (number), `amount` (>= 0), optional `method` and `currency`.
+  - `POST /api/payments/confirm-demo` requires `booking_id` and `amount` (>= 0), optional `currency`.
+- Validation errors return HTTP 400 with the shape `{ message, code: "VALIDATION_ERROR", errors: [{ path, message }] }`.
+
+### Booking TTL Worker
+
+- A background worker cancels stale `pending` bookings older than `BOOKING_PENDING_TTL_MINUTES`.
+- Runs every minute and uses MySQL named locks to avoid concurrent runs across instances.
+- Logs how many bookings were auto-cancelled.
+
+### Stripe Webhook Idempotency
+
+- The endpoint `/api/payments/webhook` verifies signatures and processes events transactionally.
+- Events are recorded in `webhook_events` with a unique `(provider,event_id)` key to prevent duplicate processing.
+- If a duplicate event is received, it is acknowledged but skipped.
 
 ### Email Notification on Google/Firebase Login
 
@@ -56,4 +85,4 @@ Notes:
 
 - Email sending is non-blocking; login succeeds even if SMTP fails.
 - Backend avoids sending to a fallback synthetic email (used when provider doesn't supply real email).
-- For troubleshooting, check `server.log` or console for "Failed to send login notification email" logs.
+- For troubleshooting, check `server.log` or console for logs like webhook processing and email send errors.

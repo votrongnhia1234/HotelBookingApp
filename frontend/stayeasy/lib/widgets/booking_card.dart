@@ -38,14 +38,27 @@ class BookingCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 64,
+                height: 64,
+                child: booking.imageUrl.isNotEmpty
+                    ? Image.network(
+                        booking.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: theme.colorScheme.primaryContainer,
+                            child: const Icon(Icons.meeting_room_rounded, size: 28),
+                          );
+                        },
+                      )
+                    : Container(
+                        color: theme.colorScheme.primaryContainer,
+                        child: const Icon(Icons.meeting_room_rounded, size: 28),
+                      ),
               ),
-              child: const Icon(Icons.meeting_room_rounded, size: 28),
             ),
             const SizedBox(width: 12),
             Expanded(

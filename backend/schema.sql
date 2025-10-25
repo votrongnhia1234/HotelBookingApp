@@ -116,6 +116,32 @@ CREATE TABLE payments (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 );
+
+-- Audit logs for actions
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NULL,
+  action VARCHAR(64) NOT NULL,
+  target_type VARCHAR(64) NULL,
+  target_id INT NULL,
+  metadata JSON NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_user_created ON audit_logs(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_target ON audit_logs(target_type, target_id);
+
+-- Idempotency for webhooks
+CREATE TABLE IF NOT EXISTS webhook_events (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,s
+  provider VARCHAR(32) NOT NULL,
+  event_id VARCHAR(255) NOT NULL,
+  type VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_provider_event (provider, event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_provider_created ON webhook_events(provider, created_at);
+
 -- Thêm dữ liệu vào bảng roles (đã có sẵn)
 -- INSERT INTO roles (role_name) VALUES ('customer'), ('admin'), ('hotel_manager'); -- đã có
 

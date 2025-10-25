@@ -15,6 +15,8 @@ import {
   authorizeHotelOwnership,
 } from "../middleware/auth.js";
 import { hotelIdByBookingId } from "../controllers/_ownership.util.js";
+import { validateBody } from "../middleware/validate.js";
+import { createBookingSchema, updateBookingStatusSchema } from "../schemas/bookings.schema.js";
 
 const router = Router();
 
@@ -31,7 +33,13 @@ router.get(
   authorizeAdminOrManager,
   exportBookingSummary,
 );
-router.post("/", protect, authorize("customer", "admin", "hotel_manager"), createBooking);
+router.post(
+  "/",
+  protect,
+  authorize("customer", "admin", "hotel_manager"),
+  validateBody(createBookingSchema),
+  createBooking
+);
 router.patch(
   "/:id/status",
   protect,
@@ -39,6 +47,7 @@ router.patch(
   authorizeHotelOwnership((req) => hotelIdByBookingId(Number(req.params.id)), {
     allowNullForAdmin: true,
   }),
+  validateBody(updateBookingStatusSchema),
   updateBookingStatus,
 );
 router.patch(

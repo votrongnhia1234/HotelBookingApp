@@ -42,7 +42,7 @@ export const getUser = async (req, res, next) => {
       `SELECT u.id, u.name, u.email, u.phone, u.address, u.created_at, u.updated_at, r.role_name as role
          FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id=? LIMIT 1`, [id]
     );
-    if (!rows.length) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    if (!rows.length) return res.status(404).json({ message: "Không tìm thấy người dùng", code: "NOT_FOUND" });
     res.json(rows[0]);
   } catch (e) { next(e); }
 };
@@ -51,13 +51,13 @@ export const getUser = async (req, res, next) => {
 export const createUser = async (req, res, next) => {
   try {
     const { name, email, password, role="customer", phone, address } = req.body;
-    if (!name || !email || !password) return res.status(400).json({ message: "name, email, password required" });
+    if (!name || !email || !password) return res.status(400).json({ message: "name, email, password required", code: "VALIDATION_ERROR" });
 
     const [[dupe]] = await pool.query(`SELECT id FROM users WHERE email=? LIMIT 1`, [email]);
-    if (dupe) return res.status(409).json({ message: "Email already exists" });
+    if (dupe) return res.status(409).json({ message: "Email already exists", code: "EMAIL_IN_USE" });
 
     const [[roleRow]] = await pool.query(`SELECT id FROM roles WHERE role_name=? LIMIT 1`, [role]);
-    if (!roleRow) return res.status(400).json({ message: "Invalid role" });
+    if (!roleRow) return res.status(400).json({ message: "Invalid role", code: "INVALID_ROLE" });
 
     const hash = await bcrypt.hash(password, +process.env.BCRYPT_SALT_ROUNDS || 10);
     const [r] = await pool.query(
@@ -79,11 +79,11 @@ export const updateUser = async (req, res, next) => {
     ["name","phone","address"].forEach(k=>{
       if (req.body[k] !== undefined) { fields.push(`${k}=?`); params.push(req.body[k]); }
     });
-    if (!fields.length) return res.status(400).json({ message: "Không có trường nào cần cập nhật" });
+    if (!fields.length) return res.status(400).json({ message: "Không có trường nào cần cập nhật", code: "NO_FIELDS_TO_UPDATE" });
 
     params.push(id);
     const [r] = await pool.query(`UPDATE users SET ${fields.join(",")} WHERE id=?`, params);
-    if (r.affectedRows === 0) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    if (r.affectedRows === 0) return res.status(404).json({ message: "Không tìm thấy người dùng", code: "NOT_FOUND" });
     res.json({ message: "Cập nhật người dùng thành công" });
   } catch (e) { next(e); }
 };
@@ -93,12 +93,12 @@ export const changeUserRole = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { role } = req.body;
-    if (!role) return res.status(400).json({ message: "Cần truyền vai trò (role)" });
+    if (!role) return res.status(400).json({ message: "Cần truyền vai trò (role)", code: "VALIDATION_ERROR" });
     const [[roleRow]] = await pool.query(`SELECT id FROM roles WHERE role_name=? LIMIT 1`, [role]);
-    if (!roleRow) return res.status(400).json({ message: "Vai trò không hợp lệ" });
+    if (!roleRow) return res.status(400).json({ message: "Vai trò không hợp lệ", code: "INVALID_ROLE" });
 
     const [r] = await pool.query(`UPDATE users SET role_id=? WHERE id=?`, [roleRow.id, id]);
-    if (r.affectedRows === 0) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    if (r.affectedRows === 0) return res.status(404).json({ message: "Không tìm thấy người dùng", code: "NOT_FOUND" });
     res.json({ message: "Cập nhật vai trò thành công", role });
   } catch (e) { next(e); }
 };
@@ -109,7 +109,7 @@ export const deactivateUser = async (req, res, next) => {
     const id = Number(req.params.id);
     // Cách đơn giản: đặt password = NULL để chặn login (hoặc thêm cột is_active TINYINT(1))
     const [r] = await pool.query(`UPDATE users SET password=NULL WHERE id=?`, [id]);
-    if (r.affectedRows === 0) return res.status(404).json({ message: "User not found" });
+    if (r.affectedRows === 0) return res.status(404).json({ message: "User not found", code: "NOT_FOUND" });
     res.json({ message: "User deactivated" });
   } catch (e) { next(e); }
 };
@@ -119,7 +119,7 @@ export const deleteUser = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const [r] = await pool.query(`DELETE FROM users WHERE id=?`, [id]);
-    if (r.affectedRows === 0) return res.status(404).json({ message: "User not found" });
+    if (r.affectedRows === 0) return res.status(404).json({ message: "User not found", code: "NOT_FOUND" });
     res.json({ message: "User deleted" });
   } catch (e) { next(e); }
 };
@@ -313,14 +313,14 @@ export const assignHotelManager = async (req, res, next) => {
     const hotelId = Number(req.params.id);
     const { user_id } = req.body;
     if (!hotelId || !Number.isFinite(hotelId)) {
-      return res.status(400).json({ message: "hotel_id không hợp lệ" });
+      return res.status(400).json({ message: "hotel_id không hợp lệ", code: "VALIDATION_ERROR" });
     }
     if (!user_id || !Number.isFinite(Number(user_id))) {
-      return res.status(400).json({ message: "Cần truyền user_id" });
+      return res.status(400).json({ message: "Cần truyền user_id", code: "VALIDATION_ERROR" });
     }
 
     const [[hotel]] = await pool.query(`SELECT id FROM hotels WHERE id=? LIMIT 1`, [hotelId]);
-    if (!hotel) return res.status(404).json({ message: "Không tìm thấy khách sạn" });
+    if (!hotel) return res.status(404).json({ message: "Không tìm thấy khách sạn", code: "NOT_FOUND" });
 
     const [[user]] = await pool.query(
       `SELECT u.id, r.role_name AS role
@@ -328,16 +328,16 @@ export const assignHotelManager = async (req, res, next) => {
         WHERE u.id=? LIMIT 1`,
       [Number(user_id)]
     );
-    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng", code: "NOT_FOUND" });
     if (user.role !== "hotel_manager") {
-      return res.status(400).json({ message: "Người dùng phải có vai trò 'hotel_manager'" });
+      return res.status(400).json({ message: "Người dùng phải có vai trò 'hotel_manager'", code: "INVALID_ROLE" });
     }
 
     const [[existing]] = await pool.query(
       `SELECT id FROM hotel_managers WHERE hotel_id=? AND user_id=? LIMIT 1`,
       [hotelId, Number(user_id)]
     );
-    if (existing) return res.status(409).json({ message: "Người dùng đã quản lý khách sạn này" });
+    if (existing) return res.status(409).json({ message: "Người dùng đã quản lý khách sạn này", code: "CONFLICT" });
 
     const [r] = await pool.query(
       `INSERT INTO hotel_managers (hotel_id, user_id) VALUES (?, ?)`,
@@ -357,13 +357,13 @@ export const removeHotelManager = async (req, res, next) => {
     const hotelId = Number(req.params.id);
     const userId = Number(req.params.userId);
     if (!Number.isFinite(hotelId) || !Number.isFinite(userId)) {
-      return res.status(400).json({ message: "Invalid hotel_id or userId" });
+      return res.status(400).json({ message: "Invalid hotel_id or userId", code: "VALIDATION_ERROR" });
     }
     const [r] = await pool.query(
       `DELETE FROM hotel_managers WHERE hotel_id=? AND user_id=?`,
       [hotelId, userId]
     );
-    if (r.affectedRows === 0) return res.status(404).json({ message: "Assignment not found" });
+    if (r.affectedRows === 0) return res.status(404).json({ message: "Assignment not found", code: "NOT_FOUND" });
     res.json({ message: "Manager unassigned from hotel" });
   } catch (e) { next(e); }
 };
@@ -415,10 +415,10 @@ export const listHotelManagersForHotel = async (req, res, next) => {
   try {
     const hotelId = Number(req.params.id);
     if (!Number.isFinite(hotelId) || hotelId <= 0) {
-      return res.status(400).json({ message: "Invalid hotel_id" });
+      return res.status(400).json({ message: "Invalid hotel_id", code: "VALIDATION_ERROR" });
     }
     const [[hotel]] = await pool.query(`SELECT id, name FROM hotels WHERE id=? LIMIT 1`, [hotelId]);
-    if (!hotel) return res.status(404).json({ message: "Hotel not found" });
+    if (!hotel) return res.status(404).json({ message: "Hotel not found", code: "NOT_FOUND" });
 
     const [rows] = await pool.query(
       `SELECT hm.user_id, u.name, u.email, hm.created_at AS assigned_at

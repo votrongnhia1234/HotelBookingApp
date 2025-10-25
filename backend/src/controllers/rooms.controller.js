@@ -3,6 +3,7 @@ import path from "path";
 import sharp from "sharp";
 import pool from "../config/db.js";
 import { managerOwnsHotel, hotelIdByRoomId } from "./_ownership.util.js";
+import { recordAudit } from "../utils/audit.js";
 
 const UPLOAD_ROOT = path.join(process.cwd(), "uploads", "rooms");
 const ORIGINALS_DIR = path.join(UPLOAD_ROOT, "originals");
@@ -173,6 +174,7 @@ export const updateRoomStatus = async (req, res, next) => {
 
     const [r] = await pool.query("UPDATE rooms SET status=? WHERE id=?", [status, id]);
     if (r.affectedRows === 0) return res.status(404).json({ message: "Room not found" });
+    await recordAudit({ userId: req.user?.id ?? null, action: "room_status_update", targetType: "room", targetId: id, metadata: { status } });
     res.json({ message: "Room status updated" });
   } catch (e) { next(e); }
 };
@@ -190,6 +192,7 @@ export const addRoomImage = async (req, res, next) => {
     }
 
     await pool.query(`INSERT INTO room_images (room_id, image_url) VALUES (?, ?)`, [room_id, image_url]);
+    await recordAudit({ userId: req.user?.id ?? null, action: "room_image_add", targetType: "room", targetId: Number(room_id), metadata: { image_url } });
     res.status(201).json({ message: "Image added" });
   } catch (e) { next(e); }
 };
@@ -224,6 +227,8 @@ export const uploadRoomImage = async (req, res, next) => {
       `INSERT INTO room_images (room_id, image_url) VALUES (?, ?)`,
       [roomId, thumbUrl],
     );
+
+    await recordAudit({ userId: req.user?.id ?? null, action: "room_image_upload", targetType: "room", targetId: Number(roomId), metadata: { id: result.insertId, image_url: thumbUrl, original_url: originalUrl } });
 
     res.status(201).json({
       message: 'Image uploaded',
@@ -268,6 +273,7 @@ export const uploadRoomImagesBulk = async (req, res, next) => {
       );
 
       results.push({ id: insert.insertId, image_url: thumbUrl, original_url: originalUrl });
+      await recordAudit({ userId: req.user?.id ?? null, action: "room_image_upload_bulk_item", targetType: "room", targetId: Number(roomId), metadata: { id: insert.insertId, image_url: thumbUrl, original_url: originalUrl } });
     }
 
     res.status(201).json({ message: 'Images uploaded', images: results });
@@ -378,6 +384,8 @@ export const replaceRoomImage = async (req, res, next) => {
 
     removeStoredImage(existing.image_url);
 
+    await recordAudit({ userId: req.user?.id ?? null, action: "room_image_replace", targetType: "room_image", targetId: imageId, metadata: { new_image_url: thumbUrl, old_image_url: existing.image_url } });
+
     res.json({
       message: "Image updated",
       image_url: thumbUrl,
@@ -416,6 +424,8 @@ export const deleteRoomImage = async (req, res, next) => {
 
     await pool.query("DELETE FROM room_images WHERE id = ?", [imageId]);
     removeStoredImage(existing.image_url);
+
+    await recordAudit({ userId: req.user?.id ?? null, action: "room_image_delete", targetType: "room_image", targetId: imageId, metadata: { deleted_image_url: existing.image_url } });
 
     res.json({ message: "Image removed" });
   } catch (err) {

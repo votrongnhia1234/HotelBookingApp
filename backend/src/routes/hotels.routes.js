@@ -49,7 +49,13 @@ const hotelStorage = multer.diskStorage({
   },
 });
 
-const hotelUpload = multer({ storage: hotelStorage });
+const allowedMimes = new Set(['image/jpeg','image/png','image/webp']);
+const fileFilter = (req, file, cb) => {
+  if (allowedMimes.has(file.mimetype)) return cb(null, true);
+  cb(new Error('Invalid file type. Only JPEG/PNG/WebP allowed'));
+};
+
+const hotelUpload = multer({ storage: hotelStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.post(
   "/images/upload",

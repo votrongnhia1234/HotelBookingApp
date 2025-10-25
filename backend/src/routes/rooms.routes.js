@@ -81,7 +81,13 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const allowedMimes = new Set(['image/jpeg','image/png','image/webp']);
+const fileFilter = (req, file, cb) => {
+  if (allowedMimes.has(file.mimetype)) return cb(null, true);
+  cb(new Error('Invalid file type. Only JPEG/PNG/WebP allowed'));
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.post(
   "/images/upload",
@@ -127,7 +133,23 @@ router.get(
       const id = Number(req.params.id);
       const [rows] = await pool.query(
         `SELECT r.id, r.hotel_id, r.room_number, r.type, r.price_per_night, r.status,
-                h.name AS hotel_name
+                h.name AS hotel_name,
+                COALESCE(
+                  (
+                    SELECT ri.image_url
+                      FROM room_images ri
+                     WHERE ri.room_id = r.id
+                     ORDER BY ri.id ASC
+                     LIMIT 1
+                  ),
+                  (
+                    SELECT hi.image_url
+                      FROM hotel_images hi
+                     WHERE hi.hotel_id = r.hotel_id
+                     ORDER BY hi.id ASC
+                     LIMIT 1
+                  )
+                ) AS image_url
            FROM rooms r
            JOIN hotels h ON r.hotel_id = h.id
           WHERE r.id = ?
@@ -156,7 +178,23 @@ router.get(
       const id = Number(req.params.id);
       const [rows] = await pool.query(
         `SELECT r.id, r.hotel_id, r.room_number, r.type, r.price_per_night, r.status,
-                h.name AS hotel_name
+                h.name AS hotel_name,
+                COALESCE(
+                  (
+                    SELECT ri.image_url
+                      FROM room_images ri
+                     WHERE ri.room_id = r.id
+                     ORDER BY ri.id ASC
+                     LIMIT 1
+                  ),
+                  (
+                    SELECT hi.image_url
+                      FROM hotel_images hi
+                     WHERE hi.hotel_id = r.hotel_id
+                     ORDER BY hi.id ASC
+                     LIMIT 1
+                  )
+                ) AS image_url
            FROM rooms r
            JOIN hotels h ON r.hotel_id = h.id
           WHERE r.id = ?

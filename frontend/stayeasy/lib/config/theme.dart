@@ -6,45 +6,45 @@ class AppTheme {
   static const double radius = 14.0;
 
   static ThemeData buildTheme(ThemeData base) {
-    // Build a color scheme explicitly based on the provided base ThemeData
+    // Build a modern Material 3 theme using a seeded color scheme
     final isDark = base.brightness == Brightness.dark;
-    final baseScheme = isDark ? ColorScheme.dark() : ColorScheme.light();
-    final colorScheme = baseScheme.copyWith(
-      primary: brandBlue,
-      secondary: const Color(0xFF2E3A59),
-      surface: Colors.white,
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: brandBlue,
+      brightness: isDark ? Brightness.dark : Brightness.light,
     );
 
-    final resultBase = ThemeData.from(colorScheme: colorScheme);
-
-    return resultBase.copyWith(
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
       scaffoldBackgroundColor: colorScheme.surface,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         centerTitle: false,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
       cardTheme: CardThemeData(
-        color: Colors.white,
-        elevation: 0,
+        color: colorScheme.surface,
+        elevation: 1,
+        clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
         ),
+        margin: const EdgeInsets.symmetric(vertical: 6),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: brandBlue,
-        unselectedItemColor: Color(0xFF9E9E9E),
+        backgroundColor: colorScheme.surface,
+        selectedItemColor: colorScheme.primary,
+        unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.6),
         showUnselectedLabels: true,
-        selectedIconTheme: IconThemeData(size: 22),
-        unselectedIconTheme: IconThemeData(size: 20),
+        selectedIconTheme: const IconThemeData(size: 22),
+        unselectedIconTheme: const IconThemeData(size: 20),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: colorScheme.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,
@@ -64,8 +64,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: brandBlue,
-          foregroundColor: Colors.white,
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
           minimumSize: const Size(double.infinity, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -80,14 +80,14 @@ class AppTheme {
         titleMedium: base.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w700,
         ),
-        bodyLarge: base.textTheme.bodyLarge?.copyWith(color: Colors.black87),
+        bodyLarge: base.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface),
       ),
       dividerTheme: DividerThemeData(
         color: Colors.grey.shade200,
         thickness: 1,
         space: 20,
       ),
-      cardColor: Colors.white,
+      cardColor: colorScheme.surface,
     );
   }
 }
