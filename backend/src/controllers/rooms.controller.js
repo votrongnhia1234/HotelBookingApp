@@ -307,6 +307,31 @@ export const getRoomImages = async (req, res, next) => {
   }
 };
 
+// Liệt kê các khoảng ngày đã đặt (không tính CANCELLED)
+export const listRoomBookedRanges = async (req, res, next) => {
+  try {
+    const roomId = Number(req.params.id);
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      return res.status(400).json({ message: "room id must be a positive integer" });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT DATE_FORMAT(check_in, '%Y-%m-%d') AS check_in,
+              DATE_FORMAT(check_out, '%Y-%m-%d') AS check_out,
+              status
+         FROM bookings
+        WHERE room_id = ?
+          AND status IN ('pending','confirmed','completed')
+        ORDER BY check_in ASC`,
+      [roomId]
+    );
+
+    res.json({ data: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const replaceRoomImage = async (req, res, next) => {
   try {
     const imageId = Number(req.params.imageId);

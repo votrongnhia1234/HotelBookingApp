@@ -100,9 +100,23 @@ class _BookingScreenState extends State<BookingScreen> {
           );
           final serverMsg = m['message']?.toString();
           if (e.statusCode == 409) {
-            msg = serverMsg?.isNotEmpty == true
-                ? serverMsg!
-                : 'Phòng không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.';
+            if (serverMsg?.isNotEmpty == true) {
+              msg = serverMsg!;
+            } else {
+              try {
+                final List<DateTimeRange> ranges = await _service.fetchBookedRangesForRoom(widget.room.id);
+                final List<DateTimeRange> overlaps = ranges.where((r) => _checkIn.isBefore(r.end) && _checkOut.isAfter(r.start)).toList();
+                if (overlaps.isNotEmpty) {
+                  final start = overlaps.map((r) => r.start).reduce((a, b) => a.isBefore(b) ? a : b);
+                  final end = overlaps.map((r) => r.end).reduce((a, b) => a.isAfter(b) ? a : b);
+                  msg = 'Phòng này đã được đặt từ ngày ${_formatDisplay(start)} - ${_formatDisplay(end)}.';
+                } else {
+                  msg = 'Phòng không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.';
+                }
+              } catch (_) {
+                msg = 'Phòng không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày khác.';
+              }
+            }
           } else if (serverMsg?.isNotEmpty == true) {
             msg = serverMsg!;
           }

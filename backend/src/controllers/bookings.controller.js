@@ -192,12 +192,12 @@ export const createBooking = async (req, res, next) => {
       [room_id],
     );
     if (!roomRows.length) {
-      return res.status(404).json({ message: "Room not found" });
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
 
     const available = await isRoomAvailable(room_id, check_in, check_out);
     if (!available) {
-      return res.status(409).json({ message: "Room is not available in that range" });
+      return res.status(409).json({ message: "Phòng không có sẵn trong khoảng thời gian {" + check_in + " - " + check_out + "}" });
     }
 
     const [nightsRows] = await conn.query(
@@ -249,7 +249,7 @@ export const cancelBooking = async (req, res, next) => {
     const userId = req.user?.id;
 
     if (!Number.isInteger(id)) {
-      return res.status(400).json({ message: "booking id must be an integer" });
+      return res.status(400).json({ message: "booking id phải là số nguyên" });
     }
 
     const [rows] = await pool.query(
@@ -260,17 +260,17 @@ export const cancelBooking = async (req, res, next) => {
       [id],
     );
     if (!rows.length) {
-      return res.status(404).json({ message: "Booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
     }
 
     const booking = rows[0];
 
     if (role === "customer" && booking.user_id !== userId) {
-      return res.status(403).json({ message: "You are not allowed to cancel this booking" });
+      return res.status(403).json({ message: "Bạn không được phép hủy đặt phòng này" });
     }
 
     if (!["pending", "confirmed"].includes(String(booking.status ?? "").toLowerCase())) {
-      return res.status(409).json({ message: "Booking cannot be cancelled at this stage" });
+      return res.status(409).json({ message: "Không thể hủy đặt phòng ở giai đoạn này" });
     }
 
     const [result] = await pool.query(
@@ -278,7 +278,7 @@ export const cancelBooking = async (req, res, next) => {
       [id],
     );
     if (result.affectedRows === 0) {
-      return res.status(500).json({ message: "Cancel booking failed" });
+      return res.status(500).json({ message: "Hủy đặt phòng thất bại" });
     }
 
     await recordAudit({
@@ -289,7 +289,7 @@ export const cancelBooking = async (req, res, next) => {
       metadata: { previousStatus: booking.status },
     });
 
-    res.json({ message: "Booking cancelled", id });
+    res.json({ message: "Hủy đặt phòng thành công", id });
   } catch (err) {
     next(err);
   }
@@ -302,11 +302,11 @@ export const completeBooking = async (req, res, next) => {
     if (req.user?.role === "hotel_manager") {
       const hotelId = await hotelIdByBookingId(id);
       if (!hotelId) {
-        return res.status(404).json({ message: "Booking not found" });
+        return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
       }
       const ownsHotel = await managerOwnsHotel(req.user.id, hotelId);
       if (!ownsHotel) {
-        return res.status(403).json({ message: "You are not allowed to manage this hotel" });
+        return res.status(403).json({ message: "Bạn không có quyền quản lý khách sạn này" });
       }
     }
 
@@ -315,7 +315,7 @@ export const completeBooking = async (req, res, next) => {
       [id],
     );
     if (!details.length) {
-      return res.status(404).json({ message: "Booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
     }
     const previousStatus = details[0].status;
 
@@ -324,7 +324,7 @@ export const completeBooking = async (req, res, next) => {
       [id],
     );
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Booking not updatable or not found" });
+      return res.status(404).json({ message: "Đặt phòng không thể cập nhật hoặc không tồn tại" });
     }
     await recordAudit({
       userId: req.user?.id,
@@ -333,7 +333,7 @@ export const completeBooking = async (req, res, next) => {
       targetId: id,
       metadata: { previousStatus },
     });
-    res.json({ message: "Booking marked as completed" });
+    res.json({ message: "Đã đánh dấu đặt phòng hoàn tất" });
   } catch (err) {
     next(err);
   }
@@ -345,20 +345,20 @@ export const updateBookingStatus = async (req, res, next) => {
     const { status } = req.body;
 
     if (!Number.isInteger(id)) {
-      return res.status(400).json({ message: "booking id must be an integer" });
+      return res.status(400).json({ message: "booking id phải là số nguyên" });
     }
     if (!ACTIVE_STATUSES.has(status) && status !== "cancelled") {
-      return res.status(400).json({ message: "status must be pending, confirmed or cancelled" });
+      return res.status(400).json({ message: "Trạng thái phải là pending, confirmed hoặc cancelled" });
     }
 
     if (req.user?.role === "hotel_manager") {
       const hotelId = await hotelIdByBookingId(id);
       if (!hotelId) {
-        return res.status(404).json({ message: "Booking not found" });
+        return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
       }
       const ownsHotel = await managerOwnsHotel(req.user.id, hotelId);
       if (!ownsHotel) {
-        return res.status(403).json({ message: "You are not allowed to manage this hotel" });
+        return res.status(403).json({ message: "Bạn không có quyền quản lý khách sạn này" });
       }
     }
 
@@ -370,22 +370,22 @@ export const updateBookingStatus = async (req, res, next) => {
       [id],
     );
     if (!rows.length) {
-      return res.status(404).json({ message: "Booking not found" });
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
     }
 
     const booking = rows[0];
 
     if (booking.status === "completed" && status !== "cancelled") {
-      return res.status(409).json({ message: "Completed booking cannot be changed except cancellation" });
+      return res.status(409).json({ message: "Đặt phòng đã hoàn tất không thể thay đổi trừ khi hủy" });
     }
     if (booking.status === "cancelled" && status !== "cancelled") {
-      return res.status(409).json({ message: "Cancelled booking cannot be re-activated" });
+      return res.status(409).json({ message: "Đơn đặt phòng đã hủy không thể kích hoạt lại" });
     }
 
     if (status === "confirmed") {
       const overlap = await hasOverlap(booking.room_id, booking.check_in, booking.check_out, booking.id);
       if (overlap) {
-        return res.status(409).json({ message: "Cannot confirm: room is not available in that range" });
+        return res.status(409).json({ message: "Cannot confirm: Không có phòng trống trong khoảng thời gian {" + booking.check_in + " - " + booking.check_out + "}" });
       }
     }
 
@@ -394,7 +394,7 @@ export const updateBookingStatus = async (req, res, next) => {
       [status, id],
     );
     if (updateResult.affectedRows === 0) {
-      return res.status(500).json({ message: "Update failed" });
+      return res.status(500).json({ message: "Cập nhật trạng thái đặt phòng thất bại" });
     }
 
     await recordAudit({
@@ -405,7 +405,7 @@ export const updateBookingStatus = async (req, res, next) => {
       metadata: { previousStatus: booking.status, newStatus: status },
     });
 
-    res.json({ message: "Booking status updated", id, status });
+    res.json({ message: "Cập nhật trạng thái đặt phòng thành công", id, status });
   } catch (err) {
     next(err);
   }

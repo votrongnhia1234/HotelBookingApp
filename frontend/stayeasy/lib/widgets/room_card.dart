@@ -147,7 +147,13 @@ class _RoomCardState extends State<RoomCard> {
                     ),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  onPressed: widget.onBook,
+                  onPressed: room.status == 'available'
+                      ? widget.onBook
+                      : () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Phòng đã hết. Vui lòng chọn phòng khác.')),
+                          );
+                        },
                   child: const Text('Đặt'),
                 ),
               ],

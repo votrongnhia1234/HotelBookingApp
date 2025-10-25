@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show DateTimeRange;
 import '../config/api_constants.dart';
 import '../models/booking.dart';
 import '../models/booking_summary.dart';
@@ -77,5 +78,21 @@ class BookingService {
 
   Future<void> exportSummaryCsv({String? from, String? to}) async {
     await exportSummary(from: from, to: to, format: 'csv');
+  }
+
+  // === Lấy danh sách khoảng ngày đã đặt theo phòng ===
+  Future<List<DateTimeRange>> fetchBookedRangesForRoom(int roomId) async {
+    final raw = await _api.get(ApiConstants.roomBookingsByRoom(roomId));
+    final list = ApiDataParser.list(raw);
+    return list.map((e) {
+      final m = Map<String, dynamic>.from(e);
+      String inStr = (m['check_in']?.toString() ?? m['checkIn']?.toString() ?? '').trim();
+      String outStr = (m['check_out']?.toString() ?? m['checkOut']?.toString() ?? '').trim();
+      if (inStr.length > 10) inStr = inStr.substring(0, 10);
+      if (outStr.length > 10) outStr = outStr.substring(0, 10);
+      final checkIn = DateTime.parse(inStr);
+      final checkOut = DateTime.parse(outStr);
+      return DateTimeRange(start: checkIn, end: checkOut);
+    }).toList();
   }
 }

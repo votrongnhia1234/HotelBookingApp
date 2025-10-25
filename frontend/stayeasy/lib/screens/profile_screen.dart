@@ -288,7 +288,7 @@ class _MemberSections extends StatelessWidget {
                   ),
                 _SettingsItem(
                   icon: Icons.meeting_room_outlined,
-                  label: 'Quan ly phong',
+                  label: 'Quan lý phòng',
                   onTap: () => Navigator.pushNamed(context, '/manage-rooms'),
                 ),
                 _SettingsItem(

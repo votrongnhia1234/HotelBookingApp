@@ -51,11 +51,11 @@ export const register = async (req, res, next) => {
   try {
     const { name, email, password, phone, address, role = CUSTOMER_ROLE } = req.body;
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
     }
 
     const [exists] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
-    if (exists.length) return res.status(409).json({ message: "Email already taken" });
+    if (exists.length) return res.status(409).json({ message: "Email đã được sử dụng" });
 
     const roleId = await ensureCustomerRoleId();
     const hash = await bcrypt.hash(password, +process.env.BCRYPT_SALT_ROUNDS || 10);
@@ -100,7 +100,7 @@ export const loginByPhone = async (req, res, next) => {
   try {
     const { phone, password } = req.body;
     if (!phone || !password) {
-      return res.status(400).json({ message: "Phone and password are required" });
+      return res.status(400).json({ message: "Cần cung cấp số điện thoại và mật khẩu" });
     }
 
     const [rows] = await pool.query(
@@ -113,13 +113,13 @@ export const loginByPhone = async (req, res, next) => {
     );
 
     if (!rows.length) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Thông tin đăng nhập không hợp lệ" });
     }
 
     const user = rows[0];
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Thông tin đăng nhập không hợp lệ" });
     }
 
     const token = signToken({ id: user.id });
@@ -133,10 +133,10 @@ export const loginByPhone = async (req, res, next) => {
 export const loginWithFirebase = async (req, res, next) => {
   try {
     const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ message: "Missing idToken" });
+    if (!idToken) return res.status(400).json({ message: "Thiếu idToken" });
 
     const decoded = jwt.decode(idToken, { complete: true });
-    if (!decoded?.payload) return res.status(401).json({ message: "Invalid token" });
+    if (!decoded?.payload) return res.status(401).json({ message: "Token không hợp lệ" });
 
     const payload = decoded.payload;
     const phone = payload.phone_number || payload.phone;
@@ -204,11 +204,11 @@ export const loginWithFirebase = async (req, res, next) => {
         // send but don't block the response on failure
         transporter.sendMail(mailOptions).catch((err) => {
           // log error server-side; do not fail login
-          console.error('Failed to send login notification email', err);
+          console.error('Gửi email thông báo đăng nhập thất bại', err);
         });
       }
     } catch (mailErr) {
-      console.error('Error preparing login notification email', mailErr);
+      console.error('Lỗi khi chuẩn bị email thông báo đăng nhập', mailErr);
     }
 
     res.json({ token, user });

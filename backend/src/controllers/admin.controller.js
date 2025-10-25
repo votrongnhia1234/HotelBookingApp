@@ -42,7 +42,7 @@ export const getUser = async (req, res, next) => {
       `SELECT u.id, u.name, u.email, u.phone, u.address, u.created_at, u.updated_at, r.role_name as role
          FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id=? LIMIT 1`, [id]
     );
-    if (!rows.length) return res.status(404).json({ message: "User not found" });
+    if (!rows.length) return res.status(404).json({ message: "Không tìm thấy người dùng" });
     res.json(rows[0]);
   } catch (e) { next(e); }
 };
@@ -79,12 +79,12 @@ export const updateUser = async (req, res, next) => {
     ["name","phone","address"].forEach(k=>{
       if (req.body[k] !== undefined) { fields.push(`${k}=?`); params.push(req.body[k]); }
     });
-    if (!fields.length) return res.status(400).json({ message: "No fields to update" });
+    if (!fields.length) return res.status(400).json({ message: "Không có trường nào cần cập nhật" });
 
     params.push(id);
     const [r] = await pool.query(`UPDATE users SET ${fields.join(",")} WHERE id=?`, params);
-    if (r.affectedRows === 0) return res.status(404).json({ message: "User not found" });
-    res.json({ message: "User updated" });
+    if (r.affectedRows === 0) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    res.json({ message: "Cập nhật người dùng thành công" });
   } catch (e) { next(e); }
 };
 
@@ -93,13 +93,13 @@ export const changeUserRole = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { role } = req.body;
-    if (!role) return res.status(400).json({ message: "role required" });
+    if (!role) return res.status(400).json({ message: "Cần truyền vai trò (role)" });
     const [[roleRow]] = await pool.query(`SELECT id FROM roles WHERE role_name=? LIMIT 1`, [role]);
-    if (!roleRow) return res.status(400).json({ message: "Invalid role" });
+    if (!roleRow) return res.status(400).json({ message: "Vai trò không hợp lệ" });
 
     const [r] = await pool.query(`UPDATE users SET role_id=? WHERE id=?`, [roleRow.id, id]);
-    if (r.affectedRows === 0) return res.status(404).json({ message: "User not found" });
-    res.json({ message: "Role updated", role });
+    if (r.affectedRows === 0) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    res.json({ message: "Cập nhật vai trò thành công", role });
   } catch (e) { next(e); }
 };
 
@@ -313,14 +313,14 @@ export const assignHotelManager = async (req, res, next) => {
     const hotelId = Number(req.params.id);
     const { user_id } = req.body;
     if (!hotelId || !Number.isFinite(hotelId)) {
-      return res.status(400).json({ message: "Invalid hotel_id" });
+      return res.status(400).json({ message: "hotel_id không hợp lệ" });
     }
     if (!user_id || !Number.isFinite(Number(user_id))) {
-      return res.status(400).json({ message: "user_id is required" });
+      return res.status(400).json({ message: "Cần truyền user_id" });
     }
 
     const [[hotel]] = await pool.query(`SELECT id FROM hotels WHERE id=? LIMIT 1`, [hotelId]);
-    if (!hotel) return res.status(404).json({ message: "Hotel not found" });
+    if (!hotel) return res.status(404).json({ message: "Không tìm thấy khách sạn" });
 
     const [[user]] = await pool.query(
       `SELECT u.id, r.role_name AS role
@@ -328,16 +328,16 @@ export const assignHotelManager = async (req, res, next) => {
         WHERE u.id=? LIMIT 1`,
       [Number(user_id)]
     );
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng" });
     if (user.role !== "hotel_manager") {
-      return res.status(400).json({ message: "User must have role 'hotel_manager'" });
+      return res.status(400).json({ message: "Người dùng phải có vai trò 'hotel_manager'" });
     }
 
     const [[existing]] = await pool.query(
       `SELECT id FROM hotel_managers WHERE hotel_id=? AND user_id=? LIMIT 1`,
       [hotelId, Number(user_id)]
     );
-    if (existing) return res.status(409).json({ message: "User already manages this hotel" });
+    if (existing) return res.status(409).json({ message: "Người dùng đã quản lý khách sạn này" });
 
     const [r] = await pool.query(
       `INSERT INTO hotel_managers (hotel_id, user_id) VALUES (?, ?)`,

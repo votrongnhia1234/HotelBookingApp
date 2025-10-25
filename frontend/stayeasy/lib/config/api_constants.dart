@@ -54,6 +54,7 @@ class ApiConstants {
   static String managedRoomsByHotel(int hotelId) => '/rooms/managed/$hotelId';
   static String roomImagesByRoom(int roomId) => '/rooms/$roomId/images';
   static String roomImageById(int imageId) => '/rooms/images/$imageId';
+  static String roomBookingsByRoom(int roomId) => '/rooms/$roomId/bookings';
   static const String rooms = '/rooms';
   static String roomStatus(int roomId) => '/rooms/$roomId/status';
   static const String roomImages = '/rooms/images';

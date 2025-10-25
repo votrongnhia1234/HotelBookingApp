@@ -18,17 +18,17 @@ export const protect = async (req, res, next) => {
   try {
     const header = req.headers.authorization || "";
     const token = header.startsWith("Bearer ") ? header.split(" ")[1] : null;
-    if (!token) return res.status(401).json({ message: "Unauthorized" });
+    if (!token) return res.status(401).json({ message: "Chưa xác thực" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await fetchUserWithRole(decoded.id);
 
-    if (!user) return res.status(401).json({ message: "User not found" });
+    if (!user) return res.status(401).json({ message: "Không tìm thấy người dùng" });
 
     req.user = user;
     next();
   } catch (e) {
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ message: "Token không hợp lệ" });
   }
 };
 
@@ -53,7 +53,7 @@ export const attachUserIfPresent = async (req, res, next) => {
 export const authorize = (...allowedRoles) => (req, res, next) => {
   if (!req.user) return res.status(401).json({ message: "Unauthorized" });
   if (!allowedRoles.includes(req.user.role)) {
-    return res.status(403).json({ message: "Forbidden" });
+    return res.status(403).json({ message: "Không được phép" });
   }
   next();
 };
@@ -74,7 +74,7 @@ export const authorizeHotelOwnership = (
 ) => {
   return async (req, res, next) => {
     const role = req.user?.role;
-    if (!role) return res.status(401).json({ message: "Unauthorized" });
+    if (!role) return res.status(401).json({ message: "Chưa xác thực" });
 
     const rawHotelId = await extractor(req);
     const hotelId =
@@ -84,17 +84,17 @@ export const authorizeHotelOwnership = (
 
     if (role === "admin") {
       if (!allowNullForAdmin && !hotelId) {
-        return res.status(400).json({ message: "hotel_id is required" });
+        return res.status(400).json({ message: "Cần cung cấp hotel_id" });
       }
       return next();
     }
 
     if (role !== "hotel_manager") {
-      return res.status(403).json({ message: "Forbidden" });
+      return res.status(403).json({ message: "Không được phép" });
     }
 
     if (!hotelId) {
-      return res.status(400).json({ message: "hotel_id is required" });
+      return res.status(400).json({ message: "Cần cung cấp hotel_id" });
     }
 
     const owns = await managerOwnsHotel(req.user.id, hotelId);

@@ -15,6 +15,7 @@ import {
   replaceRoomImage,
   deleteRoomImage,
   uploadRoomImagesBulk,
+  listRoomBookedRanges,
 } from "../controllers/rooms.controller.js";
 import {
   protect,
@@ -30,6 +31,8 @@ const router = Router();
 router.get("/available", getAvailableRooms);
 
 router.get("/hotel/:id", attachUserIfPresent, listRoomsByHotel);
+
+router.get("/:id/bookings", attachUserIfPresent, listRoomBookedRanges);
 
 router.get(
   "/managed/:id",
