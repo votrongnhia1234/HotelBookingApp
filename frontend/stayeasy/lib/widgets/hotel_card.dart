@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 
 import '../models/hotel.dart';
 
@@ -21,21 +22,21 @@ class HotelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final radius = BorderRadius.circular(16);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: radius,
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(borderRadius: radius, color: Colors.white),
-        clipBehavior: Clip.antiAlias,
+    final currency = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ', decimalDigits: 0);
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
         child: Column(
           children: [
             Stack(
               children: [
                 SizedBox(
-                  height: 160,
+                  height: 170,
                   width: double.infinity,
                   child: Hero(
                     // ensure each hotel's hero tag is unique when not provided
@@ -62,7 +63,7 @@ class HotelCard extends StatelessWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          Color.fromRGBO(0, 0, 0, 0.35),
+                          const Color.fromRGBO(0, 0, 0, 0.35),
                           Colors.transparent,
                         ],
                       ),
@@ -101,41 +102,57 @@ class HotelCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.place, size: 18, color: Colors.black54),
+                      Icon(Icons.place, size: 18, color: cs.onSurfaceVariant),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           hotel.address,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.black54),
+                          style: TextStyle(color: cs.onSurfaceVariant),
                         ),
                       ),
                       if (_hasLocation)
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.map_outlined,
-                            color: Color(0xFF1E88E5),
+                            color: cs.primary,
                           ),
                           tooltip: 'Xem trên bản đồ',
                           onPressed: () => _openMap(context),
                         ),
                     ],
                   ),
+                  if (hotel.minPrice != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.attach_money, size: 16, color: cs.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Giá từ ${currency.format(hotel.minPrice)}',
+                          style: TextStyle(
+                            color: cs.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (distanceKm != null) ...[
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.near_me,
                           size: 16,
-                          color: Color(0xFF1E88E5),
+                          color: cs.primary,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${distanceKm!.toStringAsFixed(1)} km',
-                          style: const TextStyle(
-                            color: Color(0xFF1E88E5),
+                          style: TextStyle(
+                            color: cs.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -177,19 +194,27 @@ class _RatingPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Color.fromRGBO(255, 255, 255, 0.95),
+        color: const Color.fromRGBO(255, 255, 255, 0.95),
         borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.star, color: Colors.amber, size: 16),
+          Icon(Icons.star, color: Colors.amber, size: 16),
           const SizedBox(width: 4),
           Text(
             rating.toStringAsFixed(1),
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: TextStyle(fontWeight: FontWeight.w700, color: cs.onSurface),
           ),
         ],
       ),

@@ -4,7 +4,5 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`API listening on port ${PORT}`);
 });
-app.get("/health", (req, res) => {
-  res.status(200).json({ message: "Server OK" });
-});
+// health route moved to app.js (registered before 404 middleware)
 

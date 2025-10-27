@@ -46,6 +46,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>GMSApiKey</key>
+	<string>YOUR_IOS_MAPS_API_KEY</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>StayEasy cần quyền truy cập vị trí để gợi ý khách sạn gần bạn nhất.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

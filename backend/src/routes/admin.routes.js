@@ -11,6 +11,8 @@ import {
   assignHotelManager, removeHotelManager,
   // NEW: list & export hotel managers
   listHotelManagersForHotel, exportHotelManagers,
+  // NEW: conversion and cancellations/refunds
+  bookingConversion, cancellationsRefunds, exportConversion, exportCancellationsRefunds,
 } from "../controllers/admin.controller.js";
 import { listBookings } from "../controllers/bookings.controller.js";
 import { createHotel, updateHotel, deleteHotel } from "../controllers/hotels.controller.js";
@@ -56,5 +58,9 @@ router.get("/stats/users-growth", usersGrowth);                      // ?from=&t
 // Export CSV/Excel
 router.get("/stats/revenue/export", exportRevenue);
 router.get("/stats/revenue/export-summary", exportRevenueSummary);
+router.get("/stats/conversion", bookingConversion);
+router.get("/stats/cancellations-refunds", cancellationsRefunds);
+router.get("/stats/conversion/export", exportConversion);
+router.get("/stats/cancellations-refunds/export", exportCancellationsRefunds);
 
 export default router;

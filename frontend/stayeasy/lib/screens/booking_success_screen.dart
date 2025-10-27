@@ -74,7 +74,12 @@ class BookingSuccessScreen extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.pushNamedAndRemoveUntil(context, '/trips', (_) => false);
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (_) => false,
+                        arguments: {'initialIndex': 2},
+                      );
                     },
                     icon: const Icon(Icons.meeting_room),
                     label: const Text('Xem phòng đã đặt'),

@@ -30,6 +30,8 @@ import 'config/theme.dart';
 import 'package:stayeasy/screens/partner_bookings_screen.dart';
 import 'package:stayeasy/screens/payment_methods_screen.dart';
 import 'package:stayeasy/screens/notifications_screen.dart';
+import 'package:stayeasy/screens/explore_map_screen.dart';
+import 'package:stayeasy/screens/ai_chat_screen.dart';
 
 const kBrandBlue = Color(0xFF1E88E5);
 const kRadius = 16.0;
@@ -38,6 +40,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     stripe.Stripe.publishableKey = StripeConfig.publishableKey;
+    // Cấu hình merchant identifier cho Apple Pay nếu có
+    if (StripeConfig.merchantIdentifier.isNotEmpty) {
+      stripe.Stripe.merchantIdentifier = StripeConfig.merchantIdentifier;
+    }
     await stripe.Stripe.instance.applySettings();
   } catch (_) {
     // Skip Stripe init when not supported or not configured.
@@ -79,6 +85,8 @@ class StayEasyApp extends StatelessWidget {
         '/profile/transactions': (_) => const TransactionHistoryScreen(),
         '/profile/favorites': (_) => const FavoritesScreen(),
         '/manage-hotel-images': (_) => const HotelImageManagementScreen(),
+        '/explore': (_) => const ExploreMapScreen(),
+        '/ai-chat': (_) => const AiChatScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -116,3 +124,4 @@ class StayEasyApp extends StatelessWidget {
     );
   }
 }
+

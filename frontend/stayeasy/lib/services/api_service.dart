@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
 import '../config/api_constants.dart';
 import '../state/auth_state.dart';
 import 'download_stub.dart'
@@ -194,17 +196,21 @@ class ApiService {
   }) async {
     final url = _build(path);
     final request = http.MultipartRequest(method.toUpperCase(), url);
-    request.headers.addAll(
-      _headersCommon({'Content-Type': 'multipart/form-data'}),
-    );
+    // Only send auth; let MultipartRequest set proper Content-Type with boundary
+    request.headers.addAll(_headersCommon());
     if (fields != null) request.fields.addAll(fields);
-    final fn =
-        filename ?? 'upload_${DateTime.now().millisecondsSinceEpoch}.bin';
-    final file = http.MultipartFile.fromBytes(fieldName, bytes, filename: fn);
+    final fn = filename ?? 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final mime = lookupMimeType(fn, headerBytes: bytes) ?? 'image/jpeg';
+    final file = http.MultipartFile.fromBytes(
+      fieldName,
+      bytes,
+      filename: fn,
+      contentType: MediaType.parse(mime),
+    );
     request.files.add(file);
     if (_log) {
       dev.log(
-        '[UPLOAD BYTES $method] $url fields=${fields ?? {}} name=$fn',
+        '[UPLOAD BYTES $method] $url fields=${fields ?? {}} name=$fn mime=$mime',
         name: 'ApiService',
       );
     }
@@ -232,23 +238,28 @@ class ApiService {
   }) async {
     final url = _build(path);
     final request = http.MultipartRequest('POST', url);
-    request.headers.addAll(
-      _headersCommon({'Content-Type': 'multipart/form-data'}),
-    );
+    // Only send auth; let MultipartRequest set proper Content-Type with boundary
+    request.headers.addAll(_headersCommon());
     if (fields != null) request.fields.addAll(fields);
     for (int i = 0; i < filesBytes.length; i++) {
       final bytes = filesBytes[i];
       final name =
           (fileNames != null && i < fileNames.length && fileNames[i].isNotEmpty)
           ? fileNames[i]
-          : 'upload_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.bin';
+          : 'upload_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final mime = lookupMimeType(name, headerBytes: bytes) ?? 'image/jpeg';
       request.files.add(
-        http.MultipartFile.fromBytes(fieldName, bytes, filename: name),
+        http.MultipartFile.fromBytes(
+          fieldName,
+          bytes,
+          filename: name,
+          contentType: MediaType.parse(mime),
+        ),
       );
     }
     if (_log) {
       dev.log(
-        '[UPLOAD MANY BYTES] $url count=${filesBytes.length} fields=${fields ?? {}}',
+        '[UPLOAD MANY BYTES] $url count=${filesBytes.length} fields=${fields ?? {}} names=${fileNames ?? []}',
         name: 'ApiService',
       );
     }
@@ -300,3 +311,4 @@ class ApiService {
     return m?.group(1);
   }
 }
+

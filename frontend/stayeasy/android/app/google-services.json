@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "1002821305533-se02l5mkd0aijlb1p19icg2salbp3f9a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.stayeasy",
+            "certificate_hash": "8cebdb293cf52a6a8176b90dd39df9c70c821248"
+          }
+        },
+        {
           "client_id": "1002821305533-vqh33jr88nerc0di8i8v6fjotp0n3e0g.apps.googleusercontent.com",
           "client_type": 3
         }

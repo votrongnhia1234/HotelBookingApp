@@ -10,8 +10,17 @@ import '../utils/api_data_parser.dart';
 class HotelService {
   final _api = ApiService();
 
-  Future<List<Hotel>> fetchHotels() async {
-    final raw = await _api.get(ApiConstants.hotels);
+  Future<List<Hotel>> fetchHotels({int page = 1, int limit = 20, String? q, String? city}) async {
+    final params = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+      if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      if (city != null && city.trim().isNotEmpty) 'city': city.trim(),
+    };
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    final raw = await _api.get('${ApiConstants.hotels}?$query');
     return ApiDataParser.list(raw)
         .map((e) => Hotel.fromJson(Map<String, dynamic>.from(e)))
         .toList();
@@ -147,3 +156,4 @@ class HotelService {
     await _api.delete(ApiConstants.hotelImageById(imageId));
   }
 }
+

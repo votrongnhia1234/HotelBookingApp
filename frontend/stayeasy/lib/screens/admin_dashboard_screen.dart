@@ -9,6 +9,52 @@ import 'package:stayeasy/services/admin_service.dart';
 import 'package:stayeasy/services/hotel_service.dart';
 import 'package:stayeasy/services/booking_service.dart';
 
+// Biểu đồ thanh ngang đơn giản cho phần Tổng quan
+class _BarItem {
+  final String label;
+  final double value;
+  const _BarItem(this.label, this.value);
+}
+
+class _BarListChart extends StatelessWidget {
+  final List<_BarItem> data;
+  final String Function(num)? formatter;
+  final Color barColor;
+  const _BarListChart({super.key, required this.data, this.formatter, this.barColor = Colors.blue});
+  @override
+  Widget build(BuildContext context) {
+    final max = data.fold<double>(0, (p, e) => e.value > p ? e.value : p);
+    final theme = Theme.of(context);
+    return Column(
+      children: data.map((item) {
+        final pct = max > 0 ? (item.value / max) : 0;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              SizedBox(width: 120, child: Text(item.label)),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: pct.clamp(0, 1).toDouble(),
+                    minHeight: 10,
+                    color: barColor,
+                    backgroundColor: theme.colorScheme.surfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(formatter != null ? formatter!(item.value) : item.value.toStringAsFixed(0)),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -554,35 +600,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       style: const TextStyle(color: Colors.black54),
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        tile(
-                          Icons.people_alt,
-                          'Người dùng',
-                          s.users.toString(),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Tổng quan'),
+                                const SizedBox(height: 8),
+                                _BarListChart(
+                                  data: [
+                                    _BarItem('Người dùng', s.users.toDouble()),
+                                    _BarItem('Khách sạn', s.hotels.toDouble()),
+                                    _BarItem('Phòng', s.rooms.toDouble()),
+                                    _BarItem('Đơn đặt', s.bookings.toDouble()),
+                                  ],
+                                  barColor: Theme.of(context).colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        tile(Icons.apartment, 'Khách sạn', s.hotels.toString()),
-                        tile(
-                          Icons.meeting_room_outlined,
-                          'Phòng',
-                          s.rooms.toString(),
-                        ),
-                        tile(
-                          Icons.event_available_outlined,
-                          'Đơn đặt',
-                          s.bookings.toString(),
-                        ),
-                        tile(
-                          Icons.waves_outlined,
-                          'Doanh thu (tổng)',
-                          currency.format(s.revenueAll),
-                        ),
-                        tile(
-                          Icons.calendar_month_outlined,
-                          'Doanh thu hôm nay',
-                          currency.format(s.revenueToday),
+                        const SizedBox(height: 12),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Doanh thu'),
+                                const SizedBox(height: 8),
+                                _BarListChart(
+                                  data: [
+                                    _BarItem('Tổng', s.revenueAll.toDouble()),
+                                    _BarItem('Hôm nay', s.revenueToday.toDouble()),
+                                  ],
+                                  formatter: (v) => currency.format(v),
+                                  barColor: Theme.of(context).colorScheme.secondary,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

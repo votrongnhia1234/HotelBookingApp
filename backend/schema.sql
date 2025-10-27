@@ -170,6 +170,27 @@ INSERT INTO hotels (name, description, address, city, country, rating) VALUES
 ('Mountain View Resort', 'Khách sạn núi rừng', '505 Đỉnh Núi, Sapa', 'Lào Cai', 'Việt Nam', 4.6),
 ('City Central Hotel', 'Gần trung tâm thương mại', '606 Trung Tâm, Quận 1', 'TP.HCM', 'Việt Nam', 4.2),
 ('Luxury Suites', 'Phòng cao cấp, view đẹp', '707 Skyline, Quận 7', 'TP.HCM', 'Việt Nam', 4.9);
+('Hội An Ancient House', 'Khách sạn kiểu cổ truyền nằm gần phố cổ Hội An.', '77 Nguyễn Phúc Chu', 'Hội An', 'Việt Nam', 4.7),
+('Pleiku Central Hotel', 'Khách sạn 3 sao hiện đại tại trung tâm Pleiku, gần quảng trường Đại Đoàn Kết.', '18 Hùng Vương', 'Pleiku', 'Việt Nam', 4.1),
+('Bạc Liêu Riverside Hotel', 'Khách sạn nằm bên sông Bạc Liêu, gần khu nhà Công tử Bạc Liêu.', '5 Trần Huỳnh', 'Bạc Liêu', 'Việt Nam', 4.0),
+('Long An Green Park Hotel', 'Khách sạn nhỏ yên tĩnh tại trung tâm Tân An.', '21 Nguyễn Huệ, P.1', 'Long An', 'Việt Nam', 4.2),
+('Thanh Hóa Central Hotel', 'Khách sạn 4 sao nằm ngay trung tâm TP Thanh Hóa, gần Vincom.', '88 Lê Hoàn', 'Thanh Hóa', 'Việt Nam', 4.3),
+('Vinh City Riverside Hotel', 'Khách sạn nằm cạnh sông Lam, không gian thoáng mát.', '12 Lê Mao, TP Vinh', 'Nghệ An', 'Việt Nam', 4.1),
+('Bình Dương Sky View Hotel', 'Khách sạn hiện đại tại trung tâm Thủ Dầu Một, view toàn thành phố.', '66 Yersin, P. Hiệp Thành', 'Bình Dương', 'Việt Nam', 4.2),
+('Rạch Giá Pearl Hotel', 'Khách sạn 4 sao gần biển Rạch Giá, tiện nghi và sang trọng.', '22 Nguyễn Trung Trực', 'Rạch Giá', 'Việt Nam', 4.4),
+('Kon Tum Highland Resort', 'Khu nghỉ dưỡng giữa núi rừng Kon Tum, yên tĩnh và trong lành.', '14 Trần Hưng Đạo', 'Kon Tum', 'Việt Nam', 4.3),
+('Lạng Sơn City View Hotel', 'Khách sạn trung tâm TP Lạng Sơn, gần chợ Đông Kinh.', '10 Trần Phú', 'Lạng Sơn', 'Việt Nam', 4.0),
+('Thái Nguyên Galaxy Hotel', 'Khách sạn hiện đại, gần Đại học Thái Nguyên.', '8 Hoàng Văn Thụ', 'Thái Nguyên', 'Việt Nam', 4.2),
+('Nam Định Heritage Hotel', 'Khách sạn 4 sao mang phong cách cổ điển châu Âu.', '25 Hùng Vương', 'Nam Định', 'Việt Nam', 4.5),
+('Tây Ninh Mountain View', 'Khách sạn gần núi Bà Đen, có hồ bơi ngoài trời.', '88 Cách Mạng Tháng 8', 'Tây Ninh', 'Việt Nam', 4.1),
+('Phan Thiết Beach Resort', 'Khu nghỉ dưỡng cao cấp ven biển Mũi Né.', '15 Nguyễn Đình Chiểu', 'Phan Thiết', 'Việt Nam', 4.6),
+('Cà Mau River Hotel', 'Khách sạn trung tâm, gần Quảng trường Hùng Vương.', '9 Lý Thường Kiệt', 'Cà Mau', 'Việt Nam', 4.0),
+('Lào Cai Green Hotel', 'Khách sạn hiện đại gần ga Lào Cai và biên giới Việt–Trung.', '16 Trần Hưng Đạo', 'Lào Cai', 'Việt Nam', 4.2),
+('Sóc Trăng Lotus Hotel', 'Khách sạn 3 sao trung tâm thành phố Sóc Trăng.', '27 Nguyễn Văn Linh', 'Sóc Trăng', 'Việt Nam', 4.0),
+('Phan Rang Sun Resort', 'Khu nghỉ dưỡng ven biển với hồ bơi và spa.', '44 Yên Ninh, Phước Mỹ', 'Phan Rang', 'Việt Nam', 4.3),
+('Hà Tĩnh Central Park Hotel', 'Khách sạn 4 sao gần biển Thiên Cầm, có nhà hàng và rooftop bar.', '5 Nguyễn Du', 'Hà Tĩnh', 'Việt Nam', 4.2),
+('Gia Lai Highland Hotel', 'Khách sạn giữa lòng Tây Nguyên, phong cách thân thiện.', '11 Phạm Văn Đồng', 'Gia Lai', 'Việt Nam', 4.1);
+
 
 -- Thêm dữ liệu vào bảng rooms
 INSERT INTO rooms (hotel_id, room_number, type, price_per_night, status) VALUES
@@ -193,6 +214,145 @@ INSERT INTO rooms (hotel_id, room_number, type, price_per_night, status) VALUES
 (2, '203', 'Deluxe', 1600000, 'available'),
 (3, '303', 'Premium Villa', 6000000, 'available'),
 (4, '403', 'Family Room', 2000000, 'booked');
+(11, '101', 'Standard', 950000, 'available'),
+(11, '102', 'Deluxe', 1150000, 'available'),
+(11, '201', 'Garden View', 1350000, 'booked'),
+(11, '202', 'Family', 1550000, 'available'),
+(11, '301', 'Suite', 1800000, 'available'),
+
+-- 17. Pleiku Central Hotel
+(12, '101', 'Standard', 700000, 'available'),
+(12, '102', 'Deluxe', 900000, 'available'),
+(12, '201', 'Family', 1100000, 'available'),
+(12, '202', 'Suite', 1300000, 'booked'),
+(12, '301', 'VIP', 1550000, 'available'),
+
+-- 18. Bạc Liêu Riverside Hotel
+(13, '101', 'Standard', 600000, 'available'),
+(13, '102', 'Deluxe', 850000, 'available'),
+(13, '201', 'Family', 1000000, 'available'),
+(13, '202', 'Suite', 1200000, 'booked'),
+(13, '301', 'VIP', 1450000, 'available'),
+
+-- 19. Long An Green Park Hotel
+(14, '101', 'Standard', 650000, 'available'),
+(14, '102', 'Deluxe', 850000, 'booked'),
+(14, '201', 'Family', 1000000, 'available'),
+(14, '202', 'Suite', 1200000, 'available'),
+(14, '301', 'VIP', 1450000, 'available'),
+
+-- 20. Thanh Hóa Central Hotel
+(15, '101', 'Standard', 750000, 'available'),
+(15, '102', 'Deluxe', 950000, 'available'),
+(15, '201', 'Family', 1150000, 'available'),
+(15, '202', 'Suite', 1350000, 'booked'),
+(15, '301', 'VIP', 1600000, 'available'),
+
+-- 21. Vinh City Riverside Hotel
+(16, '101', 'Standard', 800000, 'available'),
+(16, '102', 'Deluxe', 950000, 'available'),
+(16, '201', 'Suite', 1250000, 'booked'),
+(16, '202', 'Family', 1400000, 'available'),
+(16, '301', 'VIP', 1650000, 'available'),
+
+-- 22. Bình Dương Sky View Hotel
+(17, '101', 'Standard', 850000, 'available'),
+(17, '102', 'Deluxe', 1050000, 'available'),
+(17, '201', 'Business', 1250000, 'booked'),
+(17, '202', 'Suite', 1450000, 'available'),
+(17, '301', 'VIP', 1700000, 'available'),
+
+-- 23. Rạch Giá Pearl Hotel
+(18, '101', 'Standard', 750000, 'available'),
+(18, '102', 'Deluxe', 950000, 'available'),
+(18, '201', 'Family', 1200000, 'booked'),
+(18, '202', 'Suite', 1450000, 'available'),
+(18, '301', 'VIP', 1650000, 'available'),
+
+-- 24. Kon Tum Highland Resort
+(19, '101', 'Standard', 700000, 'available'),
+(19, '102', 'Deluxe', 950000, 'booked'),
+(19, '201', 'Bungalow', 1200000, 'available'),
+(19, '202', 'Family', 1350000, 'available'),
+(19, '301', 'VIP', 1500000, 'available'),
+
+-- 25. Lạng Sơn City View Hotel
+(20, '101', 'Standard', 650000, 'available'),
+(20, '102', 'Deluxe', 850000, 'available'),
+(20, '201', 'Suite', 1100000, 'available'),
+(20, '202', 'Family', 1250000, 'booked'),
+(20, '301', 'VIP', 1450000, 'available'),
+
+-- 26. Thái Nguyên Galaxy Hotel
+(21, '101', 'Standard', 700000, 'available'),
+(21, '102', 'Deluxe', 950000, 'available'),
+(21, '201', 'Suite', 1200000, 'booked'),
+(21, '202', 'Family', 1350000, 'available'),
+(21, '301', 'VIP', 1500000, 'available'),
+
+-- 27. Nam Định Heritage Hotel
+(22, '101', 'Standard', 850000, 'available'),
+(22, '102', 'Deluxe', 1100000, 'booked'),
+(22, '201', 'Suite', 1450000, 'available'),
+(22, '202', 'Family', 1600000, 'available'),
+(22, '301', 'VIP', 1850000, 'available'),
+
+-- 28. Tây Ninh Mountain View
+(23, '101', 'Standard', 750000, 'available'),
+(23, '102', 'Deluxe', 950000, 'booked'),
+(23, '201', 'Suite', 1200000, 'available'),
+(23, '202', 'Family', 1400000, 'available'),
+(23, '301', 'VIP', 1600000, 'available'),
+
+-- 29. Phan Thiết Beach Resort
+(24, '101', 'Standard', 950000, 'available'),
+(24, '102', 'Sea View', 1300000, 'booked'),
+(24, '201', 'Deluxe', 1500000, 'available'),
+(24, '202', 'Family', 1700000, 'available'),
+(24, '301', 'Suite', 2000000, 'available'),
+
+-- 30. Cà Mau River Hotel
+(25, '101', 'Standard', 700000, 'available'),
+(25, '102', 'Deluxe', 900000, 'booked'),
+(25, '201', 'Suite', 1150000, 'available'),
+(25, '202', 'Family', 1300000, 'available'),
+(25, '301', 'VIP', 1500000, 'available'),
+
+-- 31. Lào Cai Green Hotel
+(26, '101', 'Standard', 800000, 'available'),
+(26, '102', 'Deluxe', 1000000, 'available'),
+(26, '201', 'Suite', 1250000, 'booked'),
+(26, '202', 'Family', 1400000, 'available'),
+(26, '301', 'VIP', 1600000, 'available'),
+
+-- 32. Sóc Trăng Lotus Hotel
+(27, '101', 'Standard', 650000, 'available'),
+(27, '102', 'Deluxe', 850000, 'available'),
+(27, '201', 'Family', 1000000, 'booked'),
+(27, '202', 'Suite', 1200000, 'available'),
+(27, '301', 'VIP', 1400000, 'available'),
+
+-- 33. Phan Rang Sun Resort
+(28, '101', 'Standard', 850000, 'available'),
+(28, '102', 'Deluxe', 1100000, 'booked'),
+(28, '201', 'Sea View', 1300000, 'available'),
+(28, '202', 'Family', 1500000, 'available'),
+(28, '301', 'Suite', 1750000, 'available'),
+
+-- 34. Hà Tĩnh Central Park Hotel
+(29, '101', 'Standard', 750000, 'available'),
+(29, '102', 'Deluxe', 950000, 'available'),
+(29, '201', 'Suite', 1200000, 'booked'),
+(29, '202', 'Family', 1350000, 'available'),
+(29, '301', 'VIP', 1600000, 'available'),
+
+-- 35. Gia Lai Highland Hotel
+(30, '101', 'Standard', 700000, 'available'),
+(30, '102', 'Deluxe', 900000, 'available'),
+(30, '201', 'Family', 1100000, 'booked'),
+(30, '202', 'Suite', 1300000, 'available'),
+(30, '301', 'VIP', 1500000, 'available');
+
 
 -- Thêm dữ liệu vào bảng room_images
 INSERT INTO room_images (room_id, image_url) VALUES

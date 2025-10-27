@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart' as gs;
+import '../config/auth_constants.dart';
 
 import '../models/user.dart';
 import '../state/auth_state.dart';
@@ -248,8 +249,11 @@ class AuthService {
           }
         }
       } else {
-        // Mobile: keep google_sign_in flow
-        final googleSignIn = gs.GoogleSignIn();
+        // Mobile: keep google_sign_in flow with explicit serverClientId
+        // serverClientId giúp đảm bảo idToken được cấp chính xác cho backend/Firebase
+        final googleSignIn = gs.GoogleSignIn(
+          serverClientId: AuthConstants.googleWebClientId,
+        );
         final account = await googleSignIn.signIn();
         if (account == null) {
           throw Exception('Người dùng đã hủy đăng nhập Google.');

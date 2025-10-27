@@ -11,6 +11,7 @@ class Hotel {
   final double? latitude;
   final double? longitude;
   final int managerCount;
+  final double? minPrice;
 
   Hotel({
     required this.id,
@@ -23,6 +24,7 @@ class Hotel {
     this.latitude,
     this.longitude,
     int? managerCount,
+    this.minPrice,
   }) : managerCount = managerCount ?? 0;
 
   static int _toInt(dynamic v) {
@@ -65,5 +67,6 @@ class Hotel {
         latitude: _toNullableDouble(j['latitude'] ?? j['lat'] ?? j['latitude_deg']),
         longitude: _toNullableDouble(j['longitude'] ?? j['lng'] ?? j['long'] ?? j['longitude_deg']),
         managerCount: _toInt(j['manager_count'] ?? j['managerCount'] ?? j['managers'] ?? 0),
+        minPrice: _toNullableDouble(j['min_price'] ?? j['lowest_price'] ?? j['minPrice']),
       );
-}
+}

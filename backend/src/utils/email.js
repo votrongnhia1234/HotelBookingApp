@@ -29,16 +29,16 @@ export function getTransporter() {
   return cachedTransporter;
 }
 
-export async function sendEmail({ to, subject, text, html }) {
+export async function sendEmail({ to, subject, text, html, attachments }) {
   const transporter = getTransporter();
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@stayeasy.example';
 
   if (!transporter) {
-    console.log('[email:mock]', { to, subject, text, html });
+    console.log('[email:mock]', { to, subject, text, html, attachments: Array.isArray(attachments) ? attachments.map(a=>a.filename) : undefined });
     return { mocked: true };
   }
 
-  const info = await transporter.sendMail({ from, to, subject, text, html });
+  const info = await transporter.sendMail({ from, to, subject, text, html, attachments });
   return info;
 }
 
@@ -116,4 +116,22 @@ export async function sendPaymentFailed({ to, booking, payment }) {
   const html = renderPaymentFailedHtml({ booking, payment });
   const text = `Thanh toán online thất bại cho đặt phòng #${booking.id}. Số tiền: ${displayAmount(payment.amount_minor, payment.currency)}. Mã giao dịch: ${payment.transaction_id}.`;
   return sendEmail({ to, subject, text, html });
+}
+
+// Admin report email with attachments
+export function renderAdminReportHtml({ date, summary }) {
+  return `
+    <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:640px;margin:auto;padding:16px;border:1px solid #eee;border-radius:8px">
+      <h2 style="margin:0 0 12px;color:#0d47a1">Báo cáo tự động ngày ${date}</h2>
+      <p>Tổng quan: ${summary}</p>
+      <p>Đính kèm các file CSV/XLSX chi tiết.</p>
+    </div>
+  `;
+}
+
+export async function sendAdminReport({ to, date, attachments, summary = '' }) {
+  const subject = `Báo cáo tự động ${date} - StayEasy`;
+  const html = renderAdminReportHtml({ date, summary });
+  const text = `Báo cáo tự động ngày ${date}. Vui lòng xem các file đính kèm.`;
+  return sendEmail({ to, subject, text, html, attachments });
 }

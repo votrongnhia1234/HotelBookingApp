@@ -9,6 +9,7 @@ import vouchers from "./vouchers.routes.js";
 import admin from "./admin.routes.js";
 import citiesRouter from "./cities.routes.js";
 import users from "./users.routes.js";
+import ai from "./ai.routes.js";
 
 const router = express.Router();
 
@@ -22,5 +23,6 @@ router.use("/vouchers", vouchers);
 router.use("/admin", admin);
 router.use("/cities", citiesRouter);
 router.use("/users", users);
+router.use("/ai", ai);
 
 export default router;

@@ -49,9 +49,12 @@ const hotelStorage = multer.diskStorage({
   },
 });
 
-const allowedMimes = new Set(['image/jpeg','image/png','image/webp']);
+const allowedMimes = new Set(['image/jpeg','image/jpg','image/pjpeg','image/png','image/x-png','image/webp','image/jfif']);
+const allowedExts = new Set(['.jpeg','.jpg','.png','.webp','.jfif']);
 const fileFilter = (req, file, cb) => {
-  if (allowedMimes.has(file.mimetype)) return cb(null, true);
+  const mt = (file.mimetype || '').toLowerCase();
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if (allowedMimes.has(mt) || allowedExts.has(ext)) return cb(null, true);
   cb(new Error('Invalid file type. Only JPEG/PNG/WebP allowed'));
 };
 

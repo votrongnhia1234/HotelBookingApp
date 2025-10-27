@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:intl/intl.dart';
 import 'package:stayeasy/models/booking.dart';
 import 'package:stayeasy/models/voucher.dart';
@@ -11,6 +13,7 @@ import 'package:stayeasy/state/auth_state.dart';
 import 'package:stayeasy/widgets/custom_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stayeasy/models/user.dart';
+import 'package:stayeasy/config/stripe_config.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key, required this.booking});
@@ -37,6 +40,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Voucher? _selectedVoucher;
   double _discount = 0;
   stripe.CardFieldInputDetails? _card;
+  bool _applePayEnabled = true;
+  bool _googlePayEnabled = true;
 
   Booking get _booking => widget.booking;
   double get _grossAmount => _booking.totalPrice;
@@ -52,13 +57,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _loadDefaultPaymentMethod() async {
     try {
       final sp = await SharedPreferences.getInstance();
+      // Load toggles for ví điện tử dù người dùng có chọn hỏi mỗi lần hay không
+      final apEnabled = sp.getBool('pref_applepay_enabled') ?? true;
+      final gpEnabled = sp.getBool('pref_gpay_enabled') ?? true;
+      if (mounted) {
+        setState(() {
+          _applePayEnabled = apEnabled;
+          _googlePayEnabled = gpEnabled;
+        });
+      }
       final askEveryTime = sp.getBool('pref_ask_every_time') ?? true;
-      if (askEveryTime) return; // keep current selection if user prefers asking
-      final def = sp.getString('pref_default_payment_method');
-      if (def == 'online' || def == 'cod' || def == 'bank') {
-        if (mounted) {
-          setState(() => _method = def!);
-          _recalculateDiscount();
+      if (!askEveryTime) {
+        final def = sp.getString('pref_default_payment_method');
+        if (def == 'online' || def == 'cod' || def == 'bank') {
+          if (mounted) {
+            setState(() => _method = def!);
+            _recalculateDiscount();
+          }
         }
       }
     } catch (_) {
@@ -91,30 +106,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  int _nightsFromRange() {
-    try {
-      final ci = DateTime.tryParse(_booking.checkIn);
-      final co = DateTime.tryParse(_booking.checkOut);
-      if (ci == null || co == null) return 1;
-      return co.difference(ci).inDays.abs().clamp(1, 365);
-    } catch (_) {
-      return 1;
-    }
-  }
-
-  void _recalculateDiscount() {
-    final voucher = _selectedVoucher;
-    if (voucher == null) {
-      setState(() => _discount = 0);
-      return;
-    }
-    final d = voucher.discountFor(
-      total: _grossAmount.toInt(),
-      payMethod: _method,
-    );
-    setState(() => _discount = d.toDouble());
-  }
-
   Future<void> _handleStripePayment() async {
     final result = await _paymentService.createPayment(
       bookingId: _booking.id,
@@ -124,33 +115,68 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
 
     final clientSecret = result.clientSecret;
-
-    // Try to show Stripe PaymentSheet when supported; otherwise skip gracefully.
-    try {
-      if (clientSecret != null && clientSecret.isNotEmpty) {
-        await stripe.Stripe.instance.initPaymentSheet(
-          paymentSheetParameters: stripe.SetupPaymentSheetParameters(
-            paymentIntentClientSecret: clientSecret,
-            merchantDisplayName: 'StayEasy',
-            style: ThemeMode.system,
-            googlePay: const stripe.PaymentSheetGooglePay(
-              merchantCountryCode: 'VN',
-              currencyCode: 'VND',
-              testEnv: true,
-            ),
-            applePay: const stripe.PaymentSheetApplePay(
-              merchantCountryCode: 'VN',
-            ),
-          ),
-        );
-
-        await stripe.Stripe.instance.presentPaymentSheet();
-      }
-    } catch (_) {
-      // Skip Stripe UI on unsupported platforms (e.g., web) without crashing.
+    if (clientSecret == null || clientSecret.isEmpty) {
+      throw Exception('Không thể khởi tạo phiên thanh toán Stripe.');
     }
 
-    // Confirm on backend to update DB and trigger receipt email.
+    try {
+      // Chỉ bật ví điện tử khi phù hợp với nền tảng và cấu hình
+      final isAndroid =
+          !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+      // Đảm bảo merchantIdentifier được set trước khi bật Apple Pay
+      final hasMerchantId = StripeConfig.merchantIdentifier.isNotEmpty;
+      if (hasMerchantId) {
+        try {
+          stripe.Stripe.merchantIdentifier = StripeConfig.merchantIdentifier;
+        } catch (_) {
+          // bỏ qua nếu nền tảng không hỗ trợ
+        }
+      }
+
+      final canUseGooglePay = _googlePayEnabled && isAndroid;
+      final canUseApplePay = _applePayEnabled && isIOS && hasMerchantId;
+
+      stripe.PaymentSheetGooglePay? gpay;
+      if (canUseGooglePay) {
+        gpay = stripe.PaymentSheetGooglePay(
+          merchantCountryCode: StripeConfig.merchantCountryCode,
+          currencyCode: StripeConfig.currencyCode,
+          testEnv: StripeConfig.googlePayTestEnv,
+        );
+      }
+
+      stripe.PaymentSheetApplePay? apay;
+      if (canUseApplePay) {
+        apay = stripe.PaymentSheetApplePay(
+          merchantCountryCode: StripeConfig.merchantCountryCode,
+        );
+      }
+
+      await stripe.Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: stripe.SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'StayEasy',
+          style: ThemeMode.system,
+          googlePay: gpay,
+          applePay: apay,
+        ),
+      );
+
+      await stripe.Stripe.instance.presentPaymentSheet();
+    } on stripe.StripeException catch (_) {
+      // Fallback: hiển thị UI nhập thẻ và xác nhận thủ công (web/không hỗ trợ).
+      final ok = await _showStripeCardEntry(clientSecret);
+      if (!ok) {
+        throw PlatformException(
+          code: 'canceled',
+          message: 'Thanh toán bị hủy.',
+        );
+      }
+    }
+
+    // Chỉ xác nhận backend khi thanh toán đã hoàn tất thành công.
     await _paymentService.confirmDemo(
       bookingId: _booking.id,
       amount: _netAmount,
@@ -310,7 +336,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         );
       },
     );
-
     return ok == true;
   }
 
@@ -642,5 +667,123 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ],
       ),
     );
+  }
+
+  // Bottom-sheet nhập thẻ Stripe cho web/unsupported platforms.
+  Future<bool> _showStripeCardEntry(String clientSecret) async {
+    final user = AuthState.I.currentUser;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Thông tin thẻ',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              stripe.CardField(
+                autofocus: true,
+                onCardChanged: (details) {
+                  _card = details;
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Hủy'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.lock_outline),
+                      label: const Text('Xác nhận thanh toán'),
+                      onPressed: () async {
+                        try {
+                          final billing = stripe.BillingDetails(
+                            name: user?.name,
+                            email: user?.email,
+                            phone: user?.phone,
+                            address: const stripe.Address(
+                              country: 'VN',
+                              state: 'Ho Chi Minh',
+                              postalCode: '700000',
+                              line1: 'N/A',
+                              line2: '',
+                              city: 'Ho Chi Minh',
+                            ),
+                          );
+                          await stripe.Stripe.instance.confirmPayment(
+                            paymentIntentClientSecret: clientSecret,
+                            data: stripe.PaymentMethodParams.card(
+                              paymentMethodData: stripe.PaymentMethodData(
+                                billingDetails: billing,
+                              ),
+                            ),
+                          );
+                          if (ctx.mounted) Navigator.of(ctx).pop(true);
+                        } on stripe.StripeException catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                e.error.localizedMessage ??
+                                    'Thanh toán bị hủy.',
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Thanh toán thất bại: ${e.toString()}',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    return ok == true;
+  }
+
+  int _nightsFromRange() {
+    final start = DateTime.tryParse(_booking.checkIn);
+    final end = DateTime.tryParse(_booking.checkOut);
+    if (start == null || end == null) return 1;
+    final diff = end.difference(start).inDays;
+    return diff > 0 ? diff : 1;
+  }
+
+  void _recalculateDiscount() {
+    final v = _selectedVoucher;
+    int amount = 0;
+    if (v != null) {
+      amount = v.discountFor(total: _grossAmount.toInt(), payMethod: _method);
+    }
+    setState(() => _discount = amount.toDouble());
   }
 }

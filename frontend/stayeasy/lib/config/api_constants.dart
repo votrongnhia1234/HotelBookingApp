@@ -87,6 +87,8 @@ class ApiConstants {
   // NEW: Admin listings
   static const String adminUsers = '/admin/users';
   static const String adminBookings = '/admin/bookings';
+  // AI Chat
+  static const String aiChat = '/ai/chat';
   // NEW: Admin user role & hotel manager assignment
   static String adminChangeUserRole(int userId) => '/admin/users/$userId/role';
   static String adminAssignHotelManager(int hotelId) => '/admin/hotels/$hotelId/managers';
@@ -106,3 +108,4 @@ class ApiConstants {
   static String reviewsGetByHotel(int hotelId) => '/reviews/hotel/$hotelId';
   static const String reviews = '/reviews';
 }
+

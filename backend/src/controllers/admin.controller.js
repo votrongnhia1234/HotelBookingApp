@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
+import { paymentsStatusAllowedValues } from "../utils/schema.js";
 
 /* ========= Helpers ========= */
 const parseIntOr = (v, d) => Number.isFinite(Number(v)) ? Number(v) : d;
@@ -508,6 +509,211 @@ export const exportHotelManagers = async (req, res, next) => {
     const csv = lines.join("\n");
     res.setHeader("Content-Type","text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${baseName}.csv"`);
+    return res.status(200).send(csv);
+  } catch (e) { next(e); }
+};
+
+export const bookingConversion = async (req, res, next) => {
+  try {
+    const { from, to, group = "day" } = req.query;
+    const grp = group === "month" ? "DATE_FORMAT(b.created_at,'%Y-%m')" : "DATE(b.created_at)";
+    const params = [];
+    let where = "WHERE 1=1";
+    if (from) { where += " AND b.created_at >= ?"; params.push(from); }
+    if (to)   { where += " AND b.created_at < DATE_ADD(?, INTERVAL 1 DAY)"; params.push(to); }
+
+    const [rows] = await pool.query(
+      `SELECT ${grp} AS period,
+              COUNT(*) AS created,
+              COUNT(CASE WHEN b.status='completed' THEN 1 END) AS completed,
+              COUNT(CASE WHEN b.status='cancelled' THEN 1 END) AS cancelled,
+              ROUND(100 * COUNT(CASE WHEN b.status='completed' THEN 1 END) / NULLIF(COUNT(*),0), 2) AS conversion_rate
+         FROM bookings b
+        ${where}
+        GROUP BY period
+        ORDER BY period ASC`,
+      params
+    );
+    res.json({ data: rows });
+  } catch (e) { next(e); }
+};
+
+export const cancellationsRefunds = async (req, res, next) => {
+  try {
+    const { from, to, group = "day" } = req.query;
+    const grp = group === "month" ? "DATE_FORMAT(b.updated_at,'%Y-%m')" : "DATE(b.updated_at)";
+    const params = [];
+    let where = "WHERE b.status='cancelled'";
+    if (from) { where += " AND b.updated_at >= ?"; params.push(from); }
+    if (to)   { where += " AND b.updated_at < DATE_ADD(?, INTERVAL 1 DAY)"; params.push(to); }
+
+    // Dynamically detect refund statuses if any exist in payments.status enum
+    const allowedStatuses = await paymentsStatusAllowedValues(pool) || [];
+    const candidateRefunds = [
+      'refunded','refund','refunded_partial','reversed','charge_refunded','charge_reversed'
+    ];
+    const refundStatuses = candidateRefunds.filter(s => allowedStatuses.includes(s));
+    const refundInClause = refundStatuses.length ? `IN (${refundStatuses.map(()=>'?').join(',')})` : null;
+
+    const sql = `SELECT ${grp} AS period,
+                        COUNT(*) AS cancelled_count,
+                        COALESCE(SUM(b.total_price),0) AS cancelled_amount,
+                        COUNT(DISTINCT CASE WHEN p.id IS NOT NULL AND p.status='completed' THEN b.id END) AS refunds_required_count,
+                        COALESCE(SUM(CASE WHEN p.id IS NOT NULL AND p.status='completed' THEN p.amount END),0) AS refunds_required_amount,
+                        COUNT(DISTINCT CASE WHEN p.id IS NOT NULL ${refundInClause ? `AND p.status ${refundInClause}` : 'AND 0'} THEN p.id END) AS refunds_processed_count,
+                        COALESCE(SUM(CASE WHEN p.id IS NOT NULL ${refundInClause ? `AND p.status ${refundInClause}` : 'AND 0'} THEN p.amount END),0) AS refunds_processed_amount
+                   FROM bookings b
+              LEFT JOIN payments p ON p.booking_id = b.id
+                  ${where}
+                  GROUP BY period
+                  ORDER BY period ASC`;
+
+    const [rows] = await pool.query(sql, [...params, ...refundStatuses]);
+    res.json({ data: rows, refund_statuses_used: refundStatuses });
+  } catch (e) { next(e); }
+};
+
+export const exportConversion = async (req, res, next) => {
+  try {
+    const { from, to, group = "day", format = "csv" } = req.query;
+    const grp = group === "month" ? "DATE_FORMAT(b.created_at,'%Y-%m')" : "DATE(b.created_at)";
+    const params = [];
+    let where = "WHERE 1=1";
+    if (from) { where += " AND b.created_at >= ?"; params.push(from); }
+    if (to)   { where += " AND b.created_at < DATE_ADD(?, INTERVAL 1 DAY)"; params.push(to); }
+
+    const [rows] = await pool.query(
+      `SELECT ${grp} AS period,
+              COUNT(*) AS created,
+              COUNT(CASE WHEN b.status='completed' THEN 1 END) AS completed,
+              COUNT(CASE WHEN b.status='cancelled' THEN 1 END) AS cancelled,
+              ROUND(100 * COUNT(CASE WHEN b.status='completed' THEN 1 END) / NULLIF(COUNT(*),0), 2) AS conversion_rate
+         FROM bookings b
+        ${where}
+        GROUP BY period
+        ORDER BY period ASC`,
+      params
+    );
+
+    if ((format || '').toLowerCase() === 'xlsx') {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('ChuyenDoi');
+      ws.columns = [
+        { header: 'Ky', key: 'period', width: 15 },
+        { header: 'So tao moi', key: 'created', width: 12 },
+        { header: 'Hoan tat', key: 'completed', width: 12 },
+        { header: 'Huy', key: 'cancelled', width: 12 },
+        { header: 'Ty le (%)', key: 'conversion_rate', width: 12 },
+      ];
+      rows.forEach(r => ws.addRow({
+        period: r.period,
+        created: Number(r.created) || 0,
+        completed: Number(r.completed) || 0,
+        cancelled: Number(r.cancelled) || 0,
+        conversion_rate: Number(r.conversion_rate) || 0,
+      }));
+      res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="conversion_${group}.xlsx"`);
+      const buffer = await wb.xlsx.writeBuffer();
+      return res.status(200).send(Buffer.from(buffer));
+    }
+
+    const header = ['ky','so_tao_moi','hoan_tat','huy','ty_le_%'];
+    const lines = [header.join(',')];
+    for (const r of rows) {
+      lines.push([
+        r.period,
+        Number(r.created)||0,
+        Number(r.completed)||0,
+        Number(r.cancelled)||0,
+        Number(r.conversion_rate)||0,
+      ].join(','));
+    }
+    const csv = lines.join('\n');
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="conversion_${group}.csv"`);
+    return res.status(200).send(csv);
+  } catch (e) { next(e); }
+};
+
+export const exportCancellationsRefunds = async (req, res, next) => {
+  try {
+    const { from, to, group = "day", format = "csv" } = req.query;
+    const grp = group === "month" ? "DATE_FORMAT(b.updated_at,'%Y-%m')" : "DATE(b.updated_at)";
+    const params = [];
+    let where = "WHERE b.status='cancelled'";
+    if (from) { where += " AND b.updated_at >= ?"; params.push(from); }
+    if (to)   { where += " AND b.updated_at < DATE_ADD(?, INTERVAL 1 DAY)"; params.push(to); }
+
+    const allowedStatuses = await paymentsStatusAllowedValues(pool) || [];
+    const candidateRefunds = [
+      'refunded','refund','refunded_partial','reversed','charge_refunded','charge_reversed'
+    ];
+    const refundStatuses = candidateRefunds.filter(s => allowedStatuses.includes(s));
+    const refundInClause = refundStatuses.length ? `IN (${refundStatuses.map(()=>'?').join(',')})` : null;
+
+    const sql = `SELECT ${grp} AS period,
+                        COUNT(*) AS cancelled_count,
+                        COALESCE(SUM(b.total_price),0) AS cancelled_amount,
+                        COUNT(DISTINCT CASE WHEN p.id IS NOT NULL AND p.status='completed' THEN b.id END) AS refunds_required_count,
+                        COALESCE(SUM(CASE WHEN p.id IS NOT NULL AND p.status='completed' THEN p.amount END),0) AS refunds_required_amount,
+                        COUNT(DISTINCT CASE WHEN p.id IS NOT NULL ${refundInClause ? `AND p.status ${refundInClause}` : 'AND 0'} THEN p.id END) AS refunds_processed_count,
+                        COALESCE(SUM(CASE WHEN p.id IS NOT NULL ${refundInClause ? `AND p.status ${refundInClause}` : 'AND 0'} THEN p.amount END),0) AS refunds_processed_amount
+                   FROM bookings b
+              LEFT JOIN payments p ON p.booking_id = b.id
+                  ${where}
+                  GROUP BY period
+                  ORDER BY period ASC`;
+
+    const [rows] = await pool.query(sql, [...params, ...refundStatuses]);
+
+    if ((format || '').toLowerCase() === 'xlsx') {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('HuyHoanTien');
+      ws.columns = [
+        { header: 'Ky', key: 'period', width: 15 },
+        { header: 'So huy', key: 'cancelled_count', width: 10 },
+        { header: 'Gia tri huy', key: 'cancelled_amount', width: 14 },
+        { header: 'Refund can xu ly', key: 'refunds_required_count', width: 18 },
+        { header: 'Gia tri refund can xu ly', key: 'refunds_required_amount', width: 24 },
+        { header: 'Refund da xu ly', key: 'refunds_processed_count', width: 18 },
+        { header: 'Gia tri refund da xu ly', key: 'refunds_processed_amount', width: 24 },
+      ];
+      rows.forEach(r => ws.addRow({
+        period: r.period,
+        cancelled_count: Number(r.cancelled_count)||0,
+        cancelled_amount: Number(r.cancelled_amount)||0,
+        refunds_required_count: Number(r.refunds_required_count)||0,
+        refunds_required_amount: Number(r.refunds_required_amount)||0,
+        refunds_processed_count: Number(r.refunds_processed_count)||0,
+        refunds_processed_amount: Number(r.refunds_processed_amount)||0,
+      }));
+      res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="cancellations_refunds_${group}.xlsx"`);
+      const buffer = await wb.xlsx.writeBuffer();
+      return res.status(200).send(Buffer.from(buffer));
+    }
+
+    const header = [
+      'ky','so_huy','gia_tri_huy','refund_can_xu_ly','gia_tri_refund_can_xu_ly','refund_da_xu_ly','gia_tri_refund_da_xu_ly'
+    ];
+    const lines = [header.join(',')];
+    for (const r of rows) {
+      lines.push([
+        r.period,
+        Number(r.cancelled_count)||0,
+        Number(r.cancelled_amount)||0,
+        Number(r.refunds_required_count)||0,
+        Number(r.refunds_required_amount)||0,
+        Number(r.refunds_processed_count)||0,
+        Number(r.refunds_processed_amount)||0,
+      ].join(','));
+    }
+    const csv = lines.join('\n');
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="cancellations_refunds_${group}.csv"`);
     return res.status(200).send(csv);
   } catch (e) { next(e); }
 };

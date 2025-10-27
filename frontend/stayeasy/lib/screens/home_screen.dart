@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../models/hotel.dart';
@@ -9,6 +10,8 @@ import '../widgets/hotel_card.dart';
 import 'profile_screen.dart';
 import 'my_trips_screen.dart';
 import 'voucher_screen.dart';
+import '../widgets/ai_chat_sheet.dart';
+import 'ai_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,33 +22,161 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
+  bool _initialIndexApplied = false;
   final _hotelService = HotelService();
   final _locationService = LocationService();
-  late Future<List<Hotel>> _hotelsFuture;
+  // Pagination & state
+  final ScrollController _scrollCtl = ScrollController();
+  final int _limit = 20;
+  int _page = 1;
+  bool _loading = false;
+  bool _initialLoaded = false;
+  bool _hasMore = true;
+  List<Hotel> _hotels = [];
+
   String _query = '';
   Position? _currentPosition;
   String? _locationError;
   bool _requestingLocation = false;
   double _minRating = 0;
   double? _maxDistanceKm;
+  bool _chatSheetOpen = false;
 
   @override
   void initState() {
     super.initState();
-    _hotelsFuture = _hotelService.fetchHotels();
+    _loadInitialHotels();
+    _scrollCtl.addListener(_onScroll);
     AuthState.I.addListener(_handleAuthChange);
-    _loadLocation();
+    // Tránh auto yêu cầu quyền vị trí trên web để không hiện lỗi ngay khi mở trang
+    if (!kIsWeb) {
+      _loadLocation();
+    }
   }
 
   @override
   void dispose() {
+    _scrollCtl.removeListener(_onScroll);
+    _scrollCtl.dispose();
     AuthState.I.removeListener(_handleAuthChange);
     super.dispose();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialIndexApplied) return;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      final dynamic tabArg = args['tab'];
+      final dynamic initialIdx = args['initialIndex'];
+      int? wanted;
+      if (initialIdx is int) {
+        wanted = initialIdx;
+      } else if (tabArg is String) {
+        switch (tabArg) {
+          case 'home':
+            wanted = 0;
+            break;
+          case 'recommendations':
+            wanted = 1;
+            break;
+          case 'trips':
+          case 'bookings':
+          case 'orders':
+            wanted = 2;
+            break;
+          case 'vouchers':
+          case 'deals':
+            wanted = 3;
+            break;
+          case 'profile':
+          case 'account':
+            wanted = 4;
+            break;
+        }
+      }
+      if (wanted != null) {
+        setState(() => _index = wanted!.clamp(0, 4));
+      }
+    }
+    _initialIndexApplied = true;
+  }
+
+  void _onScroll() {
+    if (!_hasMore || _loading) return;
+    if (_scrollCtl.position.pixels >=
+        _scrollCtl.position.maxScrollExtent - 200) {
+      _loadMoreHotels();
+    }
+  }
+
+  Future<void> _loadInitialHotels() async {
+    setState(() {
+      _loading = true;
+      _initialLoaded = false;
+      _page = 1;
+      _hasMore = true;
+      _hotels = [];
+    });
+    try {
+      final list = await _hotelService.fetchHotels(page: _page, limit: _limit);
+      if (!mounted) return;
+      setState(() {
+        _hotels = list;
+        _initialLoaded = true;
+        _hasMore = list.length >= _limit;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _initialLoaded = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể tải khách sạn: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMoreHotels() async {
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+    });
+    try {
+      final nextPage = _page + 1;
+      final list = await _hotelService.fetchHotels(page: nextPage, limit: _limit);
+      if (!mounted) return;
+      setState(() {
+        _page = nextPage;
+        _hotels.addAll(list);
+        _hasMore = list.length >= _limit;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể tải thêm: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshHotels() async {
+    await _loadInitialHotels();
+  }
+
   void _handleAuthChange() {
     if (!mounted) return;
-    if (AuthState.I.isLoggedIn) setState(() => _index = 4);
+    if (AuthState.I.isLoggedIn && _index == 0) setState(() => _index = 4);
   }
 
   void _onNavTap(int value) {
@@ -119,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 12),
                     const Text('Khoảng cách tối đa (km)'),
                     Slider(
-                      value: (tempDistance ?? 50).clamp(0, 50),
+                      value: ((tempDistance ?? 50).clamp(0, 50)).toDouble(),
                       min: 1,
                       max: 50,
                       divisions: 49,
@@ -213,10 +344,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.map_outlined),
+            tooltip: 'Khám phá trên bản đồ',
+            onPressed: () => Navigator.pushNamed(context, '/explore'),
+          ),
+          IconButton(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Bộ lọc',
             onPressed: _openFilters,
           ),
+
           AnimatedBuilder(
             animation: AuthState.I,
             builder: (_, __) {
@@ -286,6 +423,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _chatSheetOpen ? null : _openAiChatSheet,
+        icon: const Icon(Icons.chat_bubble_outline),
+        label: const Text('Chat'),
+      ),
     );
   }
 
@@ -340,72 +482,82 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 if (_minRating > 0)
                   Chip(
-                    label: Text('Đánh giá từ ${_minRating.toStringAsFixed(1)}'),
+                    label: Text(
+                      'Đánh giá từ  ${_minRating.toStringAsFixed(1)}',
+                    ),
                     onDeleted: () => setState(() => _minRating = 0),
                   ),
                 if (_maxDistanceKm != null)
                   Chip(
-                    label: Text('≤ ${_maxDistanceKm!.toStringAsFixed(0)} km'),
+                    label: Text('${_maxDistanceKm!.toStringAsFixed(0)} km'),
                     onDeleted: () => setState(() => _maxDistanceKm = null),
                   ),
               ],
             ),
           ),
         Expanded(
-          child: FutureBuilder<List<Hotel>>(
-            future: _hotelsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Không thể tải danh sách khách sạn.'),
-                      const SizedBox(height: 8),
-                      Text(
-                        snapshot.error.toString(),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => setState(
-                          () => _hotelsFuture = _hotelService.fetchHotels(),
-                        ),
-                        child: const Text('Thử lại'),
-                      ),
+          child: RefreshIndicator(
+            onRefresh: _refreshHotels,
+            child: Builder(
+              builder: (context) {
+                if (!_initialLoaded) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final hotels = _filterHotels(_hotels);
+                if (hotels.isEmpty) {
+                  return ListView(
+                    controller: _scrollCtl,
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
+                    children: const [
+                      SizedBox(height: 40),
+                      Center(child: Text('Không tìm thấy khách sạn phù hợp.')),
                     ],
-                  ),
-                );
-              }
-
-              final hotels = _filterHotels(snapshot.data ?? []);
-              if (hotels.isEmpty) {
-                return const Center(
-                  child: Text('Không tìm thấy khách sạn phù hợp.'),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-                itemCount: hotels.length,
-                itemBuilder: (_, index) {
-                  final hotel = hotels[index];
-                  final distance = _distanceOf(hotel);
-                  return HotelCard(
-                    hotel: hotel,
-                    distanceKm: distance,
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      '/hotel',
-                      arguments: hotel,
-                    ),
                   );
-                },
-              );
-            },
+                }
+                return ListView.builder(
+                  controller: _scrollCtl,
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
+                  itemCount: hotels.length + 1,
+                  itemBuilder: (_, index) {
+                    if (index == hotels.length) {
+                      if (_loading) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      if (!_hasMore) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: Text('Đã hiển thị tất cả')),
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: OutlinedButton.icon(
+                            onPressed: _loadMoreHotels,
+                            icon: const Icon(Icons.expand_more),
+                            label: const Text('Tải thêm'),
+                          ),
+                        ),
+                      );
+                    }
+                    final hotel = hotels[index];
+                    final distance = _distanceOf(hotel);
+                    return HotelCard(
+                      hotel: hotel,
+                      distanceKm: distance,
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/hotel',
+                        arguments: hotel,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ],
@@ -432,15 +584,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         Expanded(
-          child: FutureBuilder<List<Hotel>>(
-            future: _hotelsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
+          child: Builder(
+            builder: (context) {
+              if (!_initialLoaded) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final hotels = (snapshot.data ?? [])
-                  .where((h) => h.rating >= 4.5)
-                  .toList();
+              final hotels = _hotels.where((h) => h.rating >= 4.5).toList();
               if (hotels.isEmpty) {
                 return const Center(
                   child: Text('Chưa có dữ liệu gợi ý. Vui lòng thử lại sau!'),
@@ -455,7 +604,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return HotelCard(
                     hotel: hotel,
                     distanceKm: distance,
-                    heroTag: 'rec-',
+                    heroTag: 'rec-${hotel.id}',
                     onTap: () => Navigator.pushNamed(
                       context,
                       '/hotel',
@@ -469,6 +618,32 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _openAiChatSheet() async {
+    if (!kIsWeb) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const AiChatScreen()),
+      );
+      return;
+    }
+    if (_chatSheetOpen) return;
+    setState(() => _chatSheetOpen = true);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      isDismissible: false,
+      enableDrag: false,
+      barrierColor: Colors.transparent,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (sheetContext) {
+        final h = MediaQuery.of(sheetContext).size.height;
+        return SizedBox(height: h * 0.92, child: const AiChatSheet());
+      },
+    ).whenComplete(() {
+      if (mounted) setState(() => _chatSheetOpen = false);
+    });
   }
 }
 
@@ -581,4 +756,11 @@ class _RecommendationLoginCard extends StatelessWidget {
       ),
     );
   }
+}
+
+
+
+// Open AI Chat (method within state)
+void _openAiChatSheet() {
+  // No-op duplicate; logic moved inside _HomeScreenState.
 }

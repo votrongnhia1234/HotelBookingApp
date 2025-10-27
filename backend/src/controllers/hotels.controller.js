@@ -21,6 +21,11 @@ export const listHotels = async (req, res, next) => {
     const [rows] = await pool.query(
       `SELECT h.id, h.name, h.description, h.address, h.city, h.country, h.rating, h.created_at,
               (
+                SELECT MIN(r.price_per_night)
+                  FROM rooms r
+                 WHERE r.hotel_id = h.id
+              ) AS min_price,
+              (
                 SELECT hi.image_url
                   FROM hotel_images hi
                  WHERE hi.hotel_id = h.id
