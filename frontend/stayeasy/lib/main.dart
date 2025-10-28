@@ -32,6 +32,7 @@ import 'package:stayeasy/screens/payment_methods_screen.dart';
 import 'package:stayeasy/screens/notifications_screen.dart';
 import 'package:stayeasy/screens/explore_map_screen.dart';
 import 'package:stayeasy/screens/ai_chat_screen.dart';
+import 'package:stayeasy/screens/manager_assignment_screen.dart';
 
 const kBrandBlue = Color(0xFF1E88E5);
 const kRadius = 16.0;
@@ -87,6 +88,7 @@ class StayEasyApp extends StatelessWidget {
         '/manage-hotel-images': (_) => const HotelImageManagementScreen(),
         '/explore': (_) => const ExploreMapScreen(),
         '/ai-chat': (_) => const AiChatScreen(),
+        '/admin-manager-assignments': (_) => const ManagerAssignmentScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -124,4 +126,4 @@ class StayEasyApp extends StatelessWidget {
     );
   }
 }
-
+

@@ -87,6 +87,18 @@ class AdminService {
     await _api.download('$path$query', filename: filename);
   }
 
+  // NEW: list hotels assigned to a manager and hotels unassigned to any manager
+  Future<({User manager, List<Hotel> assigned, List<Hotel> unassigned})> listHotelsForManager(int userId) async {
+    final raw = await _api.get(ApiConstants.adminListHotelsForManager(userId));
+    final mapped = ApiDataParser.map(raw);
+    final mgr = User.fromJson(Map<String, dynamic>.from(mapped['manager'] ?? {}));
+    final assignedList = List<Map<String, dynamic>>.from(mapped['assigned'] ?? []);
+    final unassignedList = List<Map<String, dynamic>>.from(mapped['unassigned'] ?? []);
+    final assigned = assignedList.map((e) => Hotel.fromJson(e)).toList();
+    final unassigned = unassignedList.map((e) => Hotel.fromJson(e)).toList();
+    return (manager: mgr, assigned: assigned, unassigned: unassigned);
+  }
+
   // NEW: Admin hotels CRUD
   Future<Hotel> createHotel({
     required String name,

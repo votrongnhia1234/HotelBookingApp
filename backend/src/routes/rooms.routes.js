@@ -9,6 +9,7 @@ import {
   listRoomsByHotel,
   createRoom,
   updateRoomStatus,
+  updateRoomDetails,
   addRoomImage,
   uploadRoomImage,
   getRoomImages,
@@ -58,6 +59,17 @@ router.patch(
     allowNullForAdmin: true,
   }),
   updateRoomStatus,
+);
+
+// Cập nhật chi tiết phòng: số phòng, loại phòng, giá (admin/manager)
+router.patch(
+  "/:id",
+  protect,
+  authorizeAdminOrManager,
+  authorizeHotelOwnership((req) => hotelIdByRoomId(Number(req.params.id)), {
+    allowNullForAdmin: true,
+  }),
+  updateRoomDetails,
 );
 
 router.post(

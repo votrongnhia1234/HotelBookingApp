@@ -60,6 +60,21 @@ class RoomService {
     await _api.patch(ApiConstants.roomStatus(roomId), {'status': status});
   }
 
+  Future<void> updateDetails({
+    required int roomId,
+    String? roomNumber,
+    String? type,
+    num? pricePerNight,
+  }) async {
+    final payload = <String, dynamic>{
+      if (roomNumber != null) 'room_number': roomNumber,
+      if (type != null) 'type': type,
+      if (pricePerNight != null) 'price_per_night': pricePerNight,
+    };
+    if (payload.isEmpty) return; // nothing to update
+    await _api.patch(ApiConstants.roomById(roomId), payload);
+  }
+
   Future<void> addImage({
     required int roomId,
     String? imageUrl,

@@ -504,6 +504,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   case 'export-dataset':
                     _openExportDatasetDialog();
                     break;
+                  case 'manager-assignments':
+                    Navigator.pushNamed(context, '/admin-manager-assignments');
+                    break;
                 }
               },
               itemBuilder: (context) => [
@@ -524,6 +527,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       Icon(Icons.dataset_outlined),
                       SizedBox(width: 8),
                       Text('Xuất dataset'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'manager-assignments',
+                  child:  Row(
+                    children: [
+                      Icon(Icons.manage_accounts_outlined),
+                      SizedBox(width: 8),
+                      Text('Gán/huỷ QL khách sạn'),
                     ],
                   ),
                 ),

@@ -9,6 +9,7 @@ import {
   exportRevenue, exportRevenueSummary,
   // hotel manager assignment
   assignHotelManager, removeHotelManager,
+  listHotelsForManager,
   // NEW: list & export hotel managers
   listHotelManagersForHotel, exportHotelManagers,
   // NEW: conversion and cancellations/refunds
@@ -42,6 +43,8 @@ router.delete("/hotels/:id", deleteHotel);
 /** === Hotel manager assignment === */
 router.post("/hotels/:id/managers", assignHotelManager);
 router.delete("/hotels/:id/managers/:userId", removeHotelManager);
+// NEW: list hotels for a specific manager + unassigned hotels
+router.get("/hotel-managers/:userId/hotels", listHotelsForManager);
 // NEW: list managers for a hotel
 router.get("/hotels/:id/managers", listHotelManagersForHotel);
 // NEW: export mapping (global)

@@ -369,6 +369,48 @@ export const removeHotelManager = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+// NEW: Danh sách khách sạn đã gắn cho một quản lý + danh sách khách sạn chưa có quản lý
+// GET /admin/hotel-managers/:userId/hotels
+export const listHotelsForManager = async (req, res, next) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return res.status(400).json({ message: "Invalid userId", code: "VALIDATION_ERROR" });
+    }
+
+    const [[user]] = await pool.query(
+      `SELECT u.id, u.name, u.email, r.role_name AS role
+         FROM users u JOIN roles r ON r.id=u.role_id
+        WHERE u.id=? LIMIT 1`, [userId]
+    );
+    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng", code: "NOT_FOUND" });
+    if (user.role !== "hotel_manager") {
+      return res.status(400).json({ message: "Người dùng phải là 'hotel_manager'", code: "INVALID_ROLE" });
+    }
+
+    const [assigned] = await pool.query(
+      `SELECT h.id, h.name, h.city, h.country
+         FROM hotel_managers hm
+         JOIN hotels h ON h.id = hm.hotel_id
+        WHERE hm.user_id = ?
+        ORDER BY h.name ASC`,
+      [userId]
+    );
+
+    // Khách sạn chưa có bất kỳ quản lý nào
+    const [unassigned] = await pool.query(
+      `SELECT h.id, h.name, h.city, h.country
+         FROM hotels h
+         WHERE NOT EXISTS (
+           SELECT 1 FROM hotel_managers hm WHERE hm.hotel_id = h.id
+         )
+        ORDER BY h.name ASC`
+    );
+
+    res.json({ manager: { id: user.id, name: user.name, email: user.email }, assigned, unassigned });
+  } catch (e) { next(e); }
+};
+
 export const exportRevenueSummary = async (req, res, next) => {
   try {
     const today = todayISO();

@@ -94,12 +94,9 @@ export const listRoomsByHotel = async (req, res, next) => {
       return res.status(400).json({ message: "hotel_id must be a positive integer" });
     }
 
-    if (req.user?.role === "hotel_manager") {
-      const owns = await managerOwnsHotel(req.user.id, hotelId);
-      if (!owns) {
-        return res.status(403).json({ message: "You are not allowed to manage this hotel" });
-      }
-    }
+    // Public listing: ai cũng xem được danh sách phòng của khách sạn.
+    // Quyền sở hữu chỉ áp dụng cho các thao tác quản lý (create/update/delete),
+    // còn listRoomsByHotel giữ nguyên tính công khai để tránh lỗi không hiển thị phòng.
 
     const [rows] = await pool.query(
       `SELECT r.id,
@@ -125,6 +122,67 @@ export const listRoomsByHotel = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+// Cập nhật thông tin phòng: số phòng, loại phòng, giá
+export const updateRoomDetails = async (req, res, next) => {
+  try {
+    const roomId = Number(req.params.id);
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      return res.status(400).json({ message: "room id must be a positive integer" });
+    }
+
+    // Cho phép cập nhật một hoặc nhiều trường
+    const fields = [];
+    const params = [];
+
+    if (req.body.room_number !== undefined) {
+      const rn = String(req.body.room_number).trim();
+      if (!rn) return res.status(400).json({ message: "room_number cannot be empty" });
+      fields.push("room_number=?");
+      params.push(rn);
+    }
+
+    if (req.body.type !== undefined) {
+      const tp = String(req.body.type).trim();
+      if (!tp) return res.status(400).json({ message: "type cannot be empty" });
+      fields.push("type=?");
+      params.push(tp);
+    }
+
+    if (req.body.price_per_night !== undefined) {
+      const ppn = Number(req.body.price_per_night);
+      if (!Number.isFinite(ppn) || ppn < 0) {
+        return res.status(400).json({ message: "price_per_night must be a non-negative number" });
+      }
+      fields.push("price_per_night=?");
+      params.push(ppn);
+    }
+
+    if (!fields.length) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+
+    // Kiểm tra tồn tại và lấy hotel_id để audit/authorize (route đã kiểm tra quyền)
+    const hotelId = await hotelIdByRoomId(roomId);
+    if (!hotelId) return res.status(404).json({ message: "Room not found" });
+
+    params.push(roomId);
+    const [r] = await pool.query(`UPDATE rooms SET ${fields.join(",")} WHERE id=?`, params);
+    if (r.affectedRows === 0) return res.status(404).json({ message: "Room not found" });
+
+    await recordAudit({
+      userId: req.user?.id ?? null,
+      action: "room_details_update",
+      targetType: "room",
+      targetId: roomId,
+      metadata: {
+        updated_fields: fields.map(f => f.split("=")[0])
+      }
+    });
+
+    res.json({ message: "Room updated" });
+  } catch (e) { next(e); }
 };
 
 export const createRoom = async (req, res, next) => {
@@ -432,4 +490,3 @@ export const deleteRoomImage = async (req, res, next) => {
     next(err);
   }
 };
-

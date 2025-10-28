@@ -18,6 +18,39 @@ function createClient() {
   return new GoogleGenerativeAI(key);
 }
 
+// Model selection with fallback via env
+function selectModelIds() {
+  const primary = (process.env.GEMINI_MODEL || 'gemini-flash-latest').trim();
+  const fallbackEnv = (process.env.GEMINI_FALLBACK_MODEL || 'gemini-1.5-flash').trim();
+  const fallback = fallbackEnv && fallbackEnv !== primary ? fallbackEnv : null;
+  return { primary, fallback };
+}
+
+function isOverloadedError(err) {
+  const msg = String(err?.message || '');
+  const status = Number(err?.status || err?.statusCode || 0);
+  return status === 503 || msg.toLowerCase().includes('service unavailable') || msg.toLowerCase().includes('overloaded');
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function sendWithRetry(chat, text, { attempts = 3, delays = [400, 800, 1600] } = {}) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const result = await chat.sendMessage(String(text ?? ''));
+      return result;
+    } catch (err) {
+      lastErr = err;
+      // Only retry on transient errors (503/network)
+      if (!isOverloadedError(err)) break;
+      const delay = delays[Math.min(i, delays.length - 1)] || 500;
+      await sleep(delay);
+    }
+  }
+  throw lastErr;
+}
+
 // Helper: format VND
 function formatVnd(n) {
   const num = Number(n);
@@ -185,12 +218,11 @@ router.post("/chat", attachUserIfPresent, async (req, res, next) => {
       }
     }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
+    const { primary, fallback } = selectModelIds();
+    const buildModel = (modelId) => genAI.getGenerativeModel({
+      model: modelId,
       systemInstruction,
-      generationConfig: {
-        temperature: 0.7,
-      },
+      generationConfig: { temperature: 0.7 },
     });
 
     // Map history to Gemini format
@@ -199,9 +231,27 @@ router.post("/chat", attachUserIfPresent, async (req, res, next) => {
       parts: [{ text: String(m.content ?? "") }],
     }));
 
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(String(message ?? ""));
-    const text = result.response.text();
+    // Try primary model with retry/backoff
+    let text;
+    try {
+      const chatPrimary = buildModel(primary).startChat({ history });
+      const result = await sendWithRetry(chatPrimary, String(message ?? ""));
+      text = result.response.text();
+    } catch (err) {
+      if (fallback && isOverloadedError(err)) {
+        // Fallback to secondary model
+        try {
+          const chatFallback = buildModel(fallback).startChat({ history });
+          const resultFb = await sendWithRetry(chatFallback, String(message ?? ""), { attempts: 2, delays: [600, 1200] });
+          text = resultFb.response.text();
+        } catch (errFb) {
+          // Re-throw original if fallback also fails
+          throw errFb;
+        }
+      } else {
+        throw err;
+      }
+    }
 
     return res.status(200).json({
       role: "assistant",
@@ -214,6 +264,11 @@ router.post("/chat", attachUserIfPresent, async (req, res, next) => {
     if (msg.includes("quota") || msg.includes("insufficient")) {
       err.statusCode = err.statusCode || 429;
       err.code = err.code || "INSUFFICIENT_QUOTA";
+    }
+    if (isOverloadedError(err)) {
+      err.statusCode = err.statusCode || 503;
+      err.code = err.code || "AI_PROVIDER_UNAVAILABLE";
+      err.message = "Dịch vụ AI đang quá tải, vui lòng thử lại sau.";
     }
     next(err);
   }

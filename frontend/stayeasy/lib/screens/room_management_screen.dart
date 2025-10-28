@@ -418,6 +418,112 @@ class _RoomManagementScreenState extends State<RoomManagementScreen> {
     );
   }
 
+  Future<void> _showEditRoomDialog(Room room) async {
+    final formKey = GlobalKey<FormState>();
+    String roomNumber = room.roomNumber;
+    String roomType = room.type;
+    String priceText = room.pricePerNight.toStringAsFixed(0);
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Chỉnh sửa phòng ${room.roomNumber}')
+          ,
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    initialValue: roomNumber,
+                    decoration: const InputDecoration(
+                      labelText: 'Số phòng',
+                    ),
+                    keyboardType: TextInputType.text,
+                    onChanged: (v) => roomNumber = v.trim(),
+                    validator: (value) => (value ?? '').trim().isEmpty
+                        ? 'Nhập số phòng'
+                        : null,
+                  ),
+                  TextFormField(
+                    initialValue: roomType,
+                    decoration: const InputDecoration(
+                      labelText: 'Loại phòng',
+                    ),
+                    keyboardType: TextInputType.text,
+                    onChanged: (v) => roomType = v.trim(),
+                    validator: (value) => (value ?? '').trim().isEmpty
+                        ? 'Nhập loại phòng'
+                        : null,
+                  ),
+                  TextFormField(
+                    initialValue: priceText,
+                    decoration: const InputDecoration(
+                      labelText: 'Giá/đêm (VND)',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => priceText = v.trim(),
+                    validator: (value) {
+                      final raw = (value ?? '').trim();
+                      if (raw.isEmpty) return 'Nhập giá phòng';
+                      return double.tryParse(raw) == null
+                          ? 'Giá không hợp lệ'
+                          : null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(true);
+                }
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
+
+    final price = double.tryParse(priceText);
+    if (result == true &&
+        price != null &&
+        roomNumber.isNotEmpty &&
+        roomType.isNotEmpty) {
+      try {
+        await _roomService.updateDetails(
+          roomId: room.id,
+          roomNumber: roomNumber,
+          type: roomType,
+          pricePerNight: price,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã cập nhật chi tiết phòng.')),
+        );
+        await _loadRooms(room.hotelId);
+      } catch (e) {
+        if (!mounted) return;
+        final message = _formatApiError(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể cập nhật phòng: $message')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -543,6 +649,13 @@ class _RoomManagementScreenState extends State<RoomManagementScreen> {
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit_outlined,
+                                        ),
+                                        tooltip: 'Chỉnh sửa',
+                                        onPressed: () => _showEditRoomDialog(room),
+                                      ),
                                       IconButton(
                                         icon: const Icon(
                                           Icons.collections_outlined,

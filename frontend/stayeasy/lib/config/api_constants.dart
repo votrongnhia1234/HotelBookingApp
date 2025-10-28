@@ -56,7 +56,9 @@ class ApiConstants {
   static String roomImageById(int imageId) => '/rooms/images/$imageId';
   static String roomBookingsByRoom(int roomId) => '/rooms/$roomId/bookings';
   static const String rooms = '/rooms';
+  // Update room details/status
   static String roomStatus(int roomId) => '/rooms/$roomId/status';
+  static String roomById(int roomId) => '/rooms/$roomId';
   static const String roomImages = '/rooms/images';
   static const String roomImagesUpload = '/rooms/images/upload';
   // Add bulk upload endpoint
@@ -96,6 +98,8 @@ class ApiConstants {
   static String adminListHotelManagers(int hotelId) => '/admin/hotels/$hotelId/managers';
   static const String adminExportHotelManagers = '/admin/hotel-managers/export';
   static String adminExportHotelManagersByHotel(int hotelId) => '/admin/hotels/$hotelId/managers/export';
+  // NEW: Admin list hotels for a specific manager (assigned + unassigned)
+  static String adminListHotelsForManager(int userId) => '/admin/hotel-managers/$userId/hotels';
   // NEW: Admin hotels CRUD
   static const String adminHotels = '/admin/hotels';
   static String adminHotelById(int id) => '/admin/hotels/$id';
@@ -108,4 +112,4 @@ class ApiConstants {
   static String reviewsGetByHotel(int hotelId) => '/reviews/hotel/$hotelId';
   static const String reviews = '/reviews';
 }
-
+

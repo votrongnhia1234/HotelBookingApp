@@ -34,22 +34,22 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  http: ^1.1.0
-  init: ^1.0.0
-  shared_preferences: ^2.2.2
-  firebase_core: ^3.1.1
-  firebase_auth: ^5.1.1
-  geolocator: ^12.0.0
-  intl: ^0.20.2
-  flutter_localization: ^0.3.3
-  flutter_stripe: ^12.0.2
-  url_launcher: ^6.3.0
-  image_picker: ^0.8.7+5
-  file_picker: ^10.3.3
-  google_sign_in: ^6.2.1
-  mime: ^1.0.4
-  google_maps_flutter: ^2.13.1
-  google_maps_flutter_web: ^0.5.6
+  http: ^1.1.0  # Gọi REST API qua http
+  init: ^1.0.0  # Khởi tạo ứng dụng
+  shared_preferences: ^2.2.2 # Lưu trữ dữ liệu cục bộ dưới dạng key-value
+  firebase_core: ^3.1.1  # Khởi tạo Firebase
+  firebase_auth: ^5.1.1  # Xác thực người dùng qua Firebase
+  geolocator: ^12.0.0  # Lấy vị trí người dùng
+  intl: ^0.20.2  # Hỗ trợ định dạng ngày tháng 
+  flutter_localization: ^0.3.3  # Hỗ trợ ngôn ngữ đa ngôn ngữ
+  flutter_stripe: ^12.0.2  # Hỗ trợ thanh toán qua Stripe 
+  url_launcher: ^6.3.0  # Mở đường dẫn web, email, đt từ app
+  image_picker: ^0.8.7+5  # Chọn ảnh từ thư viện ảnh
+  file_picker: ^10.3.3  # Chọn tệp tin từ thư viện tệp tin
+  google_sign_in: ^6.2.1  # Đăng nhập bằng tài khoản google
+  mime: ^1.0.4 # Hỗ trợ định dạng tệp tin
+  google_maps_flutter: ^2.13.1  # Hỗ trợ hiển thị bản đồ qua Google Maps
+  provider: ^6.1.1  # Hỗ trợ quản lý trạng thái ứng dụng
 
 
 dev_dependencies:
